@@ -524,7 +524,7 @@ function normalizeCfg(d){
 var cfg = defaultCfg();
 var days = {};
 var cur = {date:todayIso(), cls:'c1', view:'saisie', edit:false, confirmRm:null, confirmEx:false, scope:'cls'};
-var store = {db:null, mode:'loading', readonly:false, cfgReady:false, cfgExists:false, err:false, unsubDay:null, unsubCfg:null, queues:{}};
+var store = {isOwner:false, db:null, mode:'loading', readonly:false, cfgReady:false, cfgExists:false, err:false, unsubDay:null, unsubCfg:null, queues:{}};
 var msgDirty = false;
 var sender = '';
 var LSS = 'registre-presence-expediteur';
@@ -603,6 +603,7 @@ function setMarks(map){
 }
 
 /* ---------- Rendu ---------- */
+function cfgLocked(){ return locked() || (store.mode==='online' && !store.isOwner); }
 function locked(){ return store.mode==='loading' || store.readonly || (store.mode==='online' && !store.cfgReady); }
 
 function renderSync(){
@@ -611,7 +612,7 @@ function renderSync(){
   else if(store.readonly){ st='readonly'; txt='Lecture seule'; }
   else if(store.mode==='online'){
     if(store.err){ st='error'; txt="Échec de l'enregistrement"; }
-    else if(store.cfgReady){ st='online'; txt='Enregistré en ligne'; }
+    else if(store.cfgReady){ st='online'; txt=store.isOwner?'Enregistré en ligne':'Saisie des présences seulement'; title=store.isOwner?'':"Seul l'administrateur peut modifier les noms, les fiches et les finances."; }
   }
   el.dataset.state=st; el.textContent=txt; el.title=title;
 }
@@ -631,23 +632,24 @@ function renderChips(){
 function renderHead(){
   var c=curClass(), k=countsFor(c,cur.date);
   $('#clsTitle').textContent=c.name;
-  var tin=$('#clsTeacherIn'); if(document.activeElement!==tin) tin.value=c.teacher; tin.disabled=locked();
+  var tin=$('#clsTeacherIn'); if(document.activeElement!==tin) tin.value=c.teacher; tin.disabled=cfgLocked();
   $('#pills').innerHTML =
     '<div class="pill p"><span class="pl">Présents</span><span class="pn">'+k.P+'</span></div>'+
     '<div class="pill r"><span class="pl">En retard</span><span class="pn">'+k.R+'</span></div>'+
     '<div class="pill an"><span class="pl">Absents notifiés</span><span class="pn">'+k.An+'</span></div>'+
     '<div class="pill au"><span class="pl">Absents non notifiés</span><span class="pn">'+k.Au+'</span></div>'+
     '<div class="pill"><span class="pl">À saisir</span><span class="pn">'+k.U+'</span></div>';
-  var lk=locked();
+  var lk=locked(), clk=cfgLocked();
+  if(clk&&cur.edit) cur.edit=false;
   $('#btnRest').disabled = lk || k.U===0;
   $('#btnEdit').setAttribute('aria-pressed', String(cur.edit));
   $('#btnEdit').textContent = cur.edit ? 'Terminer' : 'Modifier les noms';
-  $('#btnEdit').disabled = lk;
+  $('#btnEdit').disabled = clk;
   $('#editbox').hidden = !cur.edit;
   var nm=$('#clsName'); if(document.activeElement!==nm) nm.value=c.name;
   var ex=$('#exBanner'); ex.hidden = !cfg.example;
-  $('#addBtn').disabled = lk;
-  $('#addName').disabled = lk;
+  $('#addBtn').disabled = clk;
+  $('#addName').disabled = clk;
 }
 function hasProf(p){ return !!p&&Object.keys(p).length>0; }
 function rowHtml(s,i,rec,lk){
@@ -762,7 +764,7 @@ function renderRecips(){
   var box=$('#recips'), ae=document.activeElement;
   if(ae && ae.tagName==='INPUT' && box.contains(ae)){ updateLinks(); return; }
   var on=$('#oName'), ow=$('#oWa'), keepN=on?on.value:'', keepW=ow?ow.value:'';
-  var d=locked()?' disabled':'', R=cfg.recip, h='';
+  var d=cfgLocked()?' disabled':'', R=cfg.recip, h='';
   h+='<h3 class="rh">Direction : WhatsApp et e-mail</h3>';
   h+='<p class="hint">Numéros WhatsApp : avec l\'indicatif du pays, sans « + » ni espaces (Haïti : 509).</p>';
   R.roles.forEach(function(r,i){
@@ -872,12 +874,14 @@ $('#btnRest').addEventListener('click',function(){
   curClass().students.forEach(function(s){ var r=d[s.id]; if(!r||!r.s) map[s.id]={s:'P',n:0}; });
   if(Object.keys(map).length) setMarks(map);
 });
-$('#btnEdit').addEventListener('click',function(){ cur.edit=!cur.edit; cur.confirmRm=null; renderAll(); });
+$('#btnEdit').addEventListener('click',function(){ if(cfgLocked()) return; cur.edit=!cur.edit; cur.confirmRm=null; renderAll(); });
 $('#clsName').addEventListener('change',function(e){
+  if(cfgLocked()) return;
   var v=e.target.value.trim(); if(!v) { e.target.value=curClass().name; return; }
   curClass().name=v; saveCfg(); renderAll();
 });
 $('#clsTeacherIn').addEventListener('change',function(e){
+  if(cfgLocked()){ e.target.value=curClass().teacher; return; }
   var v=e.target.value.trim().replace(/\s+/g,' '), c=curClass();
   if(!v){ e.target.value=c.teacher; if(c.teacher) toast('Le nom du professeur peut être modifié, pas effacé.'); return; }
   c.teacher=v; saveCfg(); renderAll();
@@ -896,11 +900,13 @@ $('#roll').addEventListener('click',function(e){
   } else if(b.dataset.act==='prof'){
     var st0=curClass().students.filter(function(x){return x.id===sid;})[0]; if(st0) openProf('student',st0);
   } else if(b.dataset.act==='rm'){
+    if(cfgLocked()) return;
     if(curClass().students.length<=1){ toast('Une classe doit garder au moins un nom.'); return; }
     cur.confirmRm=sid; renderRoll();
   } else if(b.dataset.act==='rmno'){
     cur.confirmRm=null; renderRoll();
   } else if(b.dataset.act==='rmyes'){
+    if(cfgLocked()) return;
     var cl=curClass();
     if(cl.students.length<=1){ toast('Une classe doit garder au moins un nom.'); cur.confirmRm=null; renderRoll(); return; }
     cl.students=cl.students.filter(function(x){ return x.id!==sid; });
@@ -908,7 +914,7 @@ $('#roll').addEventListener('click',function(e){
   }
 });
 $('#roll').addEventListener('change',function(e){
-  var t=e.target; if(!t.classList.contains('nm-in')) return;
+  var t=e.target; if(!t.classList.contains('nm-in')||cfgLocked()) return;
   var sid=t.closest('li[data-sid]').dataset.sid;
   var s=curClass().students.filter(function(x){return x.id===sid;})[0]; if(!s) return;
   var v=t.value.trim().replace(/\s+/g,' ');
@@ -929,7 +935,7 @@ function openProf(kind,obj){
   if(kind==='student'){ pf.holder=obj; pf.key='p'; pf.name=obj.name; }
   else { pf.holder=obj; pf.key='tp'; pf.name=obj.teacher; }
   if(!pf.holder[pf.key]) pf.holder[pf.key]={};
-  var o=pf.holder[pf.key], lk=locked(), defs=PF[kind==='student'?'student':'teacher'];
+  var o=pf.holder[pf.key], lk=cfgLocked(), defs=PF[kind==='student'?'student':'teacher'];
   $('#pfTitle').textContent=pf.name;
   $('#pfSub').textContent=kind==='student'?('Élève · '+curClass().name):'Professeur(e) · '+curClass().name;
   $('#pfPhotoAct').hidden=lk;
@@ -950,13 +956,13 @@ function closeProf(){
   $('#profModal').hidden=true; pf.holder=null; renderAll();
 }
 $('#pfFields').addEventListener('change',function(e){
-  var k=e.target.dataset&&e.target.dataset.k; if(!k||!pf.holder||locked()) return;
+  var k=e.target.dataset&&e.target.dataset.k; if(!k||!pf.holder||cfgLocked()) return;
   var v=e.target.value.trim().replace(/\s+/g,' '), o=pf.holder[pf.key];
   if(v) o[k]=v; else delete o[k];
   saveCfg();
 });
 $('#pfFile').addEventListener('change',function(e){
-  var f=e.target.files&&e.target.files[0]; e.target.value=''; if(!f||!pf.holder||locked()) return;
+  var f=e.target.files&&e.target.files[0]; e.target.value=''; if(!f||!pf.holder||cfgLocked()) return;
   var rd=new FileReader();
   rd.onload=function(){
     var im=new Image();
@@ -973,7 +979,7 @@ $('#pfFile').addEventListener('change',function(e){
   };
   rd.readAsDataURL(f);
 });
-$('#pfDelPhoto').addEventListener('click',function(){ if(!pf.holder||locked()) return; delete pf.holder[pf.key].photo; saveCfg(); pfAvatar(); });
+$('#pfDelPhoto').addEventListener('click',function(){ if(!pf.holder||cfgLocked()) return; delete pf.holder[pf.key].photo; saveCfg(); pfAvatar(); });
 $('#pfClose').addEventListener('click',closeProf);
 $('#profModal').addEventListener('click',function(e){ if(e.target===this) closeProf(); });
 document.addEventListener('keydown',function(e){ if(e.key==='Escape'&&!$('#profModal').hidden) closeProf(); });
@@ -1093,7 +1099,7 @@ function renderFin(){
   var s=pf.obj, box=$('#pfFin');
   if(pf.kind!=='student'){ box.hidden=true; return; }
   box.hidden=false;
-  var lk=locked(), d=lk?' disabled':'', pay=(s.f&&s.f.pay)||[], b=balOf(s);
+  var lk=cfgLocked(), d=lk?' disabled':'', pay=(s.f&&s.f.pay)||[], b=balOf(s);
   var h='<div class="pfsec">Finances</div><div class="fsum"><div><b>'+fmt(feeOf(s))+'</b><span>Frais d\'inscription</span></div><div><b>'+fmt(paidOf(s))+'</b><span>Reçu</span></div><div class="bal '+(b>0?'due':'ok')+'"><b>'+fmt(b)+'</b><span>Solde à payer</span></div></div>';
   h+='<label class="lbl" style="flex-direction:row;align-items:center;gap:10px"><input id="fnSch" type="checkbox" style="width:22px;height:22px;flex:none"'+(isBours(s)?' checked':'')+d+'> Boursier(ère) : ne paie rien</label>';
   h+='<label class="lbl">Frais de cet élève (laisser vide = frais de l\'école : '+fmt(cfg.fin.fee)+')<input id="fnFee" type="number" inputmode="decimal" min="0" step="0.01" value="'+(s.f&&s.f.fee!=null?s.f.fee:'')+'"'+(lk||isBours(s)?' disabled':'')+'></label>';
@@ -1109,21 +1115,21 @@ function renderFin(){
   box.innerHTML=h;
 }
 $('#pfFin').addEventListener('change',function(e){
-  if(e.target.id==='fnSch'){ if(!pf.obj||locked()) return; var s0=pf.obj; if(!s0.f) s0.f={}; if(e.target.checked) s0.f.sch=true; else delete s0.f.sch; saveCfg(); renderFin(); return; }
-  if(e.target.id!=='fnFee'||!pf.obj||locked()) return;
+  if(e.target.id==='fnSch'){ if(!pf.obj||cfgLocked()) return; var s0=pf.obj; if(!s0.f) s0.f={}; if(e.target.checked) s0.f.sch=true; else delete s0.f.sch; saveCfg(); renderFin(); return; }
+  if(e.target.id!=='fnFee'||!pf.obj||cfgLocked()) return;
   var v=e.target.value.trim(), s=pf.obj; if(!s.f) s.f={};
   if(v===''||!isFinite(Number(v))||Number(v)<0) delete s.f.fee; else s.f.fee=money(v);
   saveCfg(); renderFin();
 });
 $('#pfFin').addEventListener('submit',function(e){
-  e.preventDefault(); if(e.target.id!=='fnAdd'||!pf.obj||locked()) return;
+  e.preventDefault(); if(e.target.id!=='fnAdd'||!pf.obj||cfgLocked()) return;
   var a=money($('#fnAmt').value); if(a<=0){ toast('Entrez un montant supérieur à 0.'); return; }
   var s=pf.obj; if(!s.f) s.f={}; if(!s.f.pay) s.f.pay=[];
   s.f.pay.push({id:uid(),d:$('#fnDate').value||todayIso(),a:a,n:$('#fnNote').value.trim().replace(/\s+/g,' ').slice(0,80)});
   saveCfg(); renderFin(); toast('Paiement enregistré.');
 });
 $('#pfFin').addEventListener('click',function(e){
-  var b=e.target.closest('button[data-fa]'); if(!b||locked()) return; var s=pf.obj; if(!s) return;
+  var b=e.target.closest('button[data-fa]'); if(!b||cfgLocked()) return; var s=pf.obj; if(!s) return;
   if(b.dataset.fa==='paydel'){ pf.confirmPay=b.dataset.id; renderFin(); }
   else if(b.dataset.fa==='payno'){ pf.confirmPay=null; renderFin(); }
   else if(b.dataset.fa==='payyes'){ s.f.pay=s.f.pay.filter(function(x){return x.id!==b.dataset.id;}); pf.confirmPay=null; saveCfg(); renderFin(); toast('Paiement retiré.'); }
@@ -1131,7 +1137,7 @@ $('#pfFin').addEventListener('click',function(e){
 function renderFinances(){
   rpFill();
   var fe=$('#finFee'); if(document.activeElement!==fe) fe.value=cfg.fin.fee||'';
-  $('#finCur').value=cfg.fin.cur; fe.disabled=locked(); $('#finCur').disabled=locked();
+  $('#finCur').value=cfg.fin.cur; fe.disabled=cfgLocked(); $('#finCur').disabled=cfgLocked();
   var T={n:0,due:0,paid:0}, rows='';
   cfg.classes.forEach(function(c){
     var due=0,paid=0; c.students.forEach(function(s){ due+=feeOf(s); paid+=paidOf(s); });
@@ -1151,8 +1157,8 @@ function renderFinances(){
     return '<tr><td class="tl">'+esc(s.name)+(isBours(s)?' <span class="hint">(boursier)</span>':'')+'</td><td class="n">'+fmt(feeOf(s))+'</td><td class="n">'+fmt(paidOf(s))+'</td><td class="n">'+balHtml(balOf(s))+'</td><td><button type="button" class="ghost sm" data-fsid="'+esc(s.id)+'">Paiement</button></td></tr>';
   }).join(''));
 }
-$('#finFee').addEventListener('change',function(e){ if(locked()) return; cfg.fin.fee=money(e.target.value); saveCfg(); renderAll(); toast('Frais d\'inscription enregistrés pour tous les élèves.'); });
-$('#finCur').addEventListener('change',function(e){ if(locked()) return; cfg.fin.cur=e.target.value==='USD'?'USD':'HTG'; saveCfg(); renderAll(); });
+$('#finFee').addEventListener('change',function(e){ if(cfgLocked()) return; cfg.fin.fee=money(e.target.value); saveCfg(); renderAll(); toast('Frais d\'inscription enregistrés pour tous les élèves.'); });
+$('#finCur').addEventListener('change',function(e){ if(cfgLocked()) return; cfg.fin.cur=e.target.value==='USD'?'USD':'HTG'; saveCfg(); renderAll(); });
 $('#finCls').addEventListener('change',function(e){ pickClassSilent(e.target.value); renderFinances(); });
 function pickClassSilent(id){ cur.cls=id; rememberClass(); }
 $('#finRows').addEventListener('click',function(e){
@@ -1390,8 +1396,8 @@ function renderDonnees(){
   if(list.indexOf(cfg.year)<0) list.push(cfg.year);
   list.sort();
   var sel=$('#yearSel'); sel.innerHTML=list.map(function(v){ return '<option'+(v===cfg.year?' selected':'')+'>'+v+'</option>'; }).join('');
-  sel.disabled=locked(); $('#newYear').disabled=locked();
-  $('#bkYes').disabled=locked();
+  sel.disabled=cfgLocked(); $('#newYear').disabled=cfgLocked();
+  $('#bkYes').disabled=cfgLocked();
 }
 function saveFile(name,data,mime){
   var p=(window.claude&&window.claude.use)?window.claude.use('downloads'):null;
@@ -1416,11 +1422,11 @@ function allDays(){
 function csvCell(v){ v=String(v==null?'':v); return /[;"\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
 function csvText(rows){ return '﻿'+rows.map(function(r){ return r.map(csvCell).join(';'); }).join('\r\n'); }
 function stamp(){ return todayIso(); }
-$('#yearSel').addEventListener('change',function(e){ if(locked()) return; cfg.year=e.target.value; saveCfg(); renderAll(); toast('Année scolaire : '+cfg.year); });
+$('#yearSel').addEventListener('change',function(e){ if(cfgLocked()) return; cfg.year=e.target.value; saveCfg(); renderAll(); toast('Année scolaire : '+cfg.year); });
 $('#newYear').addEventListener('click',function(){ $('#yearConfirm').hidden=false; });
 $('#newYearNo').addEventListener('click',function(){ $('#yearConfirm').hidden=true; });
 $('#newYearYes').addEventListener('click',function(){
-  if(locked()) return;
+  if(cfgLocked()) return;
   var a=parseInt(cfg.year,10)+1; cfg.year=a+'-'+(a+1); saveCfg(); $('#yearConfirm').hidden=true; renderAll(); renderDonnees(); toast('Nouvelle année scolaire : '+cfg.year);
 });
 $('#bkSave').addEventListener('click',function(){
@@ -1470,7 +1476,7 @@ $('#bkFile').addEventListener('change',function(e){
 });
 $('#bkNo').addEventListener('click',function(){ pendingBk=null; $('#bkConfirm').hidden=true; });
 $('#bkYes').addEventListener('click',function(){
-  var o=pendingBk; if(!o||locked()) return;
+  var o=pendingBk; if(!o||cfgLocked()) return;
   cfg=normalizeCfg(o.cfg); cfg.example=false;
   if(!cfg.classes.some(function(c){return c.id===cur.cls;})) cur.cls=cfg.classes[0].id;
   var d=o.days&&typeof o.days==='object'?o.days:{};
@@ -1489,7 +1495,7 @@ $('#bkYes').addEventListener('click',function(){
 $('#addForm').addEventListener('submit',function(e){
   e.preventDefault();
   var inp=$('#addName'), v=inp.value.trim().replace(/\s+/g,' ');
-  if(!v||locked()) return;
+  if(!v||cfgLocked()) return;
   curClass().students.push({id:uid(),name:v});
   inp.value=''; saveCfg(); renderAll(); inp.focus();
 });
@@ -1503,16 +1509,19 @@ $('#sender').addEventListener('input',function(e){
 $('#msg').addEventListener('input',function(){ msgDirty=true; $('#resetMsg').hidden=false; updateLinks(); });
 $('#resetMsg').addEventListener('click',function(){ msgDirty=false; renderEnvoyer(); });
 $('#recips').addEventListener('input',function(e){
+  if(cfgLocked()) return;
   var t=e.target; if(!t.dataset||!t.dataset.f) return;
   var rec=recOf(t); if(!rec) return;
   rec[t.dataset.f]=t.value; updateLinks();
 });
 $('#recips').addEventListener('change',function(e){
+  if(cfgLocked()) return;
   var t=e.target; if(!t.dataset||!t.dataset.f) return;
   var rec=recOf(t); if(!rec) return;
   rec[t.dataset.f]=t.value.trim().replace(/\s+/g,' '); saveCfg();
 });
 $('#recips').addEventListener('click',function(e){
+  if(cfgLocked()) return;
   var b=e.target.closest('button[data-ract]');
   if(b){
     var holder=b.closest('[data-other]'), o=holder?cfg.recip.others[+holder.dataset.other]:null; if(!o) return;
@@ -1533,7 +1542,7 @@ $('#recips').addEventListener('submit',function(e){
   if(e.target.id!=='addOther') return;
   e.preventDefault();
   var n=$('#oName').value.trim().replace(/\s+/g,' '), w=$('#oWa').value.trim();
-  if(locked()) return;
+  if(cfgLocked()) return;
   if(!n||!digits(w)){ toast('Indiquez un nom et un numéro WhatsApp.'); return; }
   cfg.recip.others.push({id:uid(),name:n,wa:w});
   $('#oName').value=''; $('#oWa').value='';
@@ -1672,6 +1681,7 @@ function init(){
     store.db=db; store.mode='online'; days={};
     return Promise.resolve(window.claude.use('user')).catch(function(){ return null; }).then(function(u){
       if(u && typeof u.can==='function'){
+        try{ store.isOwner = typeof u.isOwner==='function' ? !!u.isOwner() : false; }catch(e){ store.isOwner=false; }
         return Promise.resolve(u.can('data.write')).then(function(ok){ if(ok===false) store.readonly=true; }).catch(function(){});
       }
     }).then(function(){
