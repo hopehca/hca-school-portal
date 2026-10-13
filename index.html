@@ -222,6 +222,10 @@ tfoot td{font-weight:700;background:var(--surface-2);border-bottom:0;border-top:
 .fsum div{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 4px;min-width:0}
 .fsum b{display:block;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
 .fsum span{font-size:.75rem;color:var(--ink-2)}
+.fsplit{display:grid;grid-template-columns:1.5fr 1fr 1fr 1fr;gap:6px 8px;font-size:.85rem;font-variant-numeric:tabular-nums;align-items:center}
+.fsplit>span{min-width:0;overflow-wrap:anywhere}
+.fsplit .fh{color:var(--ink-2);font-size:.75rem}
+.fsplit>span:nth-child(4n+2),.fsplit>span:nth-child(4n+3),.fsplit>span:nth-child(4n){text-align:right}
 .fsum .bal.due b{color:var(--abs)} .fsum .bal.ok b{color:var(--ok)}
 .fpay{display:grid;grid-template-columns:auto 1fr auto;gap:6px 10px;align-items:center;font-variant-numeric:tabular-nums}
 .fpay .nt{color:var(--ink-2);font-size:.85em;grid-column:1/-1;margin-top:-4px}
@@ -327,11 +331,13 @@ tfoot td{font-weight:700;background:var(--surface-2);border-bottom:0;border-top:
   <section id="v-finances" aria-labelledby="tab-finances" hidden>
     <div class="app" style="gap:12px">
       <div class="dcard">
-        <h2>Frais d'inscription</h2>
-        <p>Ce montant s'applique à tous les élèves. Pour un élève qui paie un autre montant (bourse, rabais), changez-le dans sa fiche.</p>
+        <h2>Frais de l'école</h2>
+        <p>Ces montants s'appliquent à tous les élèves. Le total par élève est la somme des deux. Pour un élève qui paie un autre montant (bourse, rabais), changez-le dans sa fiche.</p>
         <div class="fadd">
-          <label class="lbl" for="finFee">Frais d'inscription par élève<input id="finFee" type="number" inputmode="decimal" min="0" step="0.01"></label>
+          <label class="lbl" for="finInsc">Frais d'inscription<input id="finInsc" type="number" inputmode="decimal" min="0" step="0.01"></label>
+          <label class="lbl" for="finPart">Frais de participation annuelle<input id="finPart" type="number" inputmode="decimal" min="0" step="0.01"></label>
           <label class="lbl" for="finCur">Monnaie<select id="finCur" class="drow"><option value="HTG">HTG (gourdes)</option><option value="USD">USD (dollars)</option></select></label>
+          <div style="display:flex;flex-direction:column;gap:6px;font-weight:500"><span>Total par élève</span><b id="finTotFee" style="font-size:1.25rem;padding:8px 0"></b></div>
         </div>
       </div>
       <div class="dcard">
@@ -355,7 +361,7 @@ tfoot td{font-weight:700;background:var(--surface-2);border-bottom:0;border-top:
         <h2>Détail par classe</h2>
         <label class="sr" for="finCls">Classe</label>
         <select id="finCls" class="drow"></select>
-        <div class="tablewrap"><table><thead><tr><th scope="col" class="tl">Élève</th><th scope="col">Dû</th><th scope="col">Reçu</th><th scope="col">Solde</th><th scope="col"></th></tr></thead><tbody id="finRows"></tbody></table></div>
+        <div class="tablewrap"><table><thead><tr><th scope="col" class="tl">Élève</th><th scope="col">Dû</th><th scope="col">Reçu</th><th scope="col">Solde</th><th scope="col">Solde inscr.</th><th scope="col">Solde partic.</th><th scope="col"></th></tr></thead><tbody id="finRows"></tbody></table></div>
         <div class="drow"><button type="button" class="ghost" id="finPdf">Situation de la classe (PDF)</button>
           <button type="button" class="ghost" id="finCsv">Finances en tableau (Excel)</button></div>
       </div>
@@ -520,7 +526,7 @@ function defaultCfg(){
   for(var i=1;i<=9;i++){
     classes.push({id:'c'+i,name:CLN[i-1],teacher:EXT[i-1],students: exStudents(i)});
   }
-  return {classes:classes,recip:defaultRecip(),example:true,year:schoolYear(),fin:{cur:'HTG',fee:0}};
+  return {classes:classes,recip:defaultRecip(),example:true,year:schoolYear(),fin:{cur:'HTG',fee:0,insc:0,part:0}};
 }
 function schoolYear(){ var d=new Date(), y=d.getFullYear(); return d.getMonth()>=7 ? y+'-'+(y+1) : (y-1)+'-'+y; }
 var PF={
@@ -532,12 +538,16 @@ var PF={
     ['sec','Personne à contacter'],['contact','Nom de la personne','text'],['cphone','Téléphone de cette personne','tel']]
 };
 function money(v){ v=Number(v); return isFinite(v)&&v>=0 ? Math.round(v*100)/100 : 0; }
-function cleanFin(f){ return {cur:(f&&f.cur==='USD')?'USD':'HTG', fee:money(f&&f.fee)}; }
+function cleanFin(f){
+  var fee=money(f&&f.fee), i=money(f&&f.insc), p=money(f&&f.part);
+  if(!i&&!p){ p=fee; } else { fee=Math.round((i+p)*100)/100; }
+  return {cur:(f&&f.cur==='USD')?'USD':'HTG', fee:fee, insc:i, part:p};
+}
 function cleanStuFin(f){
   var o={}; if(!f||typeof f!=='object') return o;
   if(f.sch===true) o.sch=true;
   if(f.fee!=null&&f.fee!==''&&isFinite(Number(f.fee))&&Number(f.fee)>=0) o.fee=money(f.fee);
-  if(Array.isArray(f.pay)) o.pay=f.pay.slice(0,200).map(function(x){ return {id:String(x&&x.id||uid()),d:/^\d{4}-\d{2}-\d{2}$/.test(String(x&&x.d))?String(x.d):'',a:money(x&&x.a),n:String(x&&x.n||'').slice(0,80)}; }).filter(function(x){return x.a>0;});
+  if(Array.isArray(f.pay)) o.pay=f.pay.slice(0,200).map(function(x){ return {id:String(x&&x.id||uid()),d:/^\d{4}-\d{2}-\d{2}$/.test(String(x&&x.d))?String(x.d):'',a:money(x&&x.a),n:String(x&&x.n||'').slice(0,80),t:(x&&x.t==='i')?'i':'p'}; }).filter(function(x){return x.a>0;});
   return o;
 }
 function cleanProf(x,defs){
@@ -1142,24 +1152,34 @@ function isBours(s){ return !!(s.f&&s.f.sch); }
 function feeOf(s){ if(isBours(s)) return 0; return (s.f&&s.f.fee!=null)?s.f.fee:cfg.fin.fee; }
 function paidOf(s){ return Math.round(((s.f&&s.f.pay)||[]).reduce(function(a,x){return a+x.a;},0)*100)/100; }
 function balOf(s){ return Math.round((feeOf(s)-paidOf(s))*100)/100; }
+function r2(n){ return Math.round(n*100)/100; }
+function dueI(s){ return r2(Math.min(cfg.fin.insc||0, feeOf(s))); }
+function dueP(s){ return r2(feeOf(s)-dueI(s)); }
+function paidI(s){ return r2(((s.f&&s.f.pay)||[]).reduce(function(a,x){return a+(x.t==='i'?x.a:0);},0)); }
+function paidP(s){ return r2(paidOf(s)-paidI(s)); }
+function payLbl(x){ return x.t==='i' ? 'Inscription' : 'Participation annuelle'; }
 function balHtml(b){ return b>0?'<span class="neg">'+fmt(b)+'</span>':(b<0?'<span class="pos">+'+fmt(-b)+' (avance)</span>':'<span class="pos">'+fmt(0)+'</span>'); }
 function renderFin(){
   var s=pf.obj, box=$('#pfFin');
   if(pf.kind!=='student'){ box.hidden=true; return; }
   box.hidden=false;
   var lk=cfgLocked(), d=lk?' disabled':'', pay=(s.f&&s.f.pay)||[], b=balOf(s);
-  var h='<div class="pfsec">Finances</div><div class="fsum"><div><b>'+fmt(feeOf(s))+'</b><span>Frais d\'inscription</span></div><div><b>'+fmt(paidOf(s))+'</b><span>Reçu</span></div><div class="bal '+(b>0?'due':'ok')+'"><b>'+fmt(b)+'</b><span>Solde à payer</span></div></div>';
+  var h='<div class="pfsec">Finances</div><div class="fsum"><div><b>'+fmt(feeOf(s))+'</b><span>Total à payer</span></div><div><b>'+fmt(paidOf(s))+'</b><span>Reçu</span></div><div class="bal '+(b>0?'due':'ok')+'"><b>'+fmt(b)+'</b><span>Solde à payer</span></div></div>';
+  h+='<div class="fsplit"><span></span><span class="fh">Dû</span><span class="fh">Reçu</span><span class="fh">Solde</span>'+
+    '<span>Inscription</span><span>'+fmt(dueI(s))+'</span><span>'+fmt(paidI(s))+'</span><span>'+balHtml(r2(dueI(s)-paidI(s)))+'</span>'+
+    '<span>Participation annuelle</span><span>'+fmt(dueP(s))+'</span><span>'+fmt(paidP(s))+'</span><span>'+balHtml(r2(dueP(s)-paidP(s)))+'</span></div>';
   h+='<label class="lbl" style="flex-direction:row;align-items:center;gap:10px"><input id="fnSch" type="checkbox" style="width:22px;height:22px;flex:none"'+(isBours(s)?' checked':'')+d+'> Boursier(ère) : ne paie rien</label>';
-  h+='<label class="lbl">Frais de cet élève (laisser vide = frais de l\'école : '+fmt(cfg.fin.fee)+')<input id="fnFee" type="number" inputmode="decimal" min="0" step="0.01" value="'+(s.f&&s.f.fee!=null?s.f.fee:'')+'"'+(lk||isBours(s)?' disabled':'')+'></label>';
+  h+='<label class="lbl">Total à payer pour cet élève (laisser vide = frais de l\'école : '+fmt(cfg.fin.fee)+')<input id="fnFee" type="number" inputmode="decimal" min="0" step="0.01" value="'+(s.f&&s.f.fee!=null?s.f.fee:'')+'"'+(lk||isBours(s)?' disabled':'')+'></label>';
   h+='<div class="fpay">';
   if(!pay.length) h+='<span class="hint" style="grid-column:1/-1">Aucun paiement reçu.</span>';
   pay.slice().sort(function(a,c){return (a.d||'').localeCompare(c.d||'');}).forEach(function(x){
     h+='<span>'+(x.d?esc(shortDate(x.d)):'—')+'</span><b>'+fmt(x.a)+'</b>';
     h+= pf.confirmPay===x.id ? '<span><button type="button" class="rm" data-fa="payyes" data-id="'+esc(x.id)+'">Oui</button> <button type="button" class="ghost sm" data-fa="payno">Non</button></span>' : '<button type="button" class="ghost sm" data-fa="paydel" data-id="'+esc(x.id)+'"'+d+'>Retirer</button>';
-    if(x.n) h+='<span class="nt">'+esc(x.n)+'</span>';
+    h+='<span class="nt">'+payLbl(x)+(x.n?' - '+esc(x.n):'')+'</span>';
   });
   h+='</div>';
-  h+='<form class="fadd" id="fnAdd" autocomplete="off"><label class="lbl">Date<input id="fnDate" type="date" value="'+todayIso()+'"'+d+'></label><label class="lbl">Montant reçu<input id="fnAmt" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00"'+d+'></label><label class="lbl full">Note (reçu n°, paiement partiel…)<input id="fnNote" type="text" maxlength="80"'+d+'></label><button type="submit" class="btn full"'+d+'>Ajouter le paiement</button></form>';
+  var defT=(r2(dueI(s)-paidI(s))>0)?'i':'p';
+  h+='<form class="fadd" id="fnAdd" autocomplete="off"><label class="lbl">Date<input id="fnDate" type="date" value="'+todayIso()+'"'+d+'></label><label class="lbl">Type de paiement<select id="fnType"'+d+'><option value="i"'+(defT==='i'?' selected':'')+'>Inscription</option><option value="p"'+(defT==='p'?' selected':'')+'>Participation annuelle</option></select></label><label class="lbl full">Montant reçu<input id="fnAmt" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00"'+d+'></label><label class="lbl full">Note (reçu n°, paiement partiel…)<input id="fnNote" type="text" maxlength="80"'+d+'></label><button type="submit" class="btn full"'+d+'>Ajouter le paiement</button></form>';
   box.innerHTML=h;
 }
 $('#pfFin').addEventListener('change',function(e){
@@ -1173,7 +1193,7 @@ $('#pfFin').addEventListener('submit',function(e){
   e.preventDefault(); if(e.target.id!=='fnAdd'||!pf.obj||cfgLocked()) return;
   var a=money($('#fnAmt').value); if(a<=0){ toast('Entrez un montant supérieur à 0.'); return; }
   var s=pf.obj; if(!s.f) s.f={}; if(!s.f.pay) s.f.pay=[];
-  s.f.pay.push({id:uid(),d:$('#fnDate').value||todayIso(),a:a,n:$('#fnNote').value.trim().replace(/\s+/g,' ').slice(0,80)});
+  s.f.pay.push({id:uid(),d:$('#fnDate').value||todayIso(),a:a,t:($('#fnType').value==='i'?'i':'p'),n:$('#fnNote').value.trim().replace(/\s+/g,' ').slice(0,80)});
   saveCfg(); renderFin(); toast('Paiement enregistré.');
 });
 $('#pfFin').addEventListener('click',function(e){
@@ -1184,11 +1204,14 @@ $('#pfFin').addEventListener('click',function(e){
 });
 function renderFinances(){
   rpFill();
-  var fe=$('#finFee'); if(document.activeElement!==fe) fe.value=cfg.fin.fee||'';
-  $('#finCur').value=cfg.fin.cur; fe.disabled=cfgLocked(); $('#finCur').disabled=cfgLocked();
-  var T={n:0,due:0,paid:0}, rows='';
+  var fi=$('#finInsc'), fp=$('#finPart');
+  if(document.activeElement!==fi) fi.value=cfg.fin.insc||'';
+  if(document.activeElement!==fp) fp.value=cfg.fin.part||'';
+  $('#finTotFee').textContent=fmt(cfg.fin.fee);
+  $('#finCur').value=cfg.fin.cur; fi.disabled=cfgLocked(); fp.disabled=cfgLocked(); $('#finCur').disabled=cfgLocked();
+  var T={n:0,due:0,paid:0}, S={di:0,pi:0,dp:0,pp:0,nb:0}, rows='';
   cfg.classes.forEach(function(c){
-    var due=0,paid=0; c.students.forEach(function(s){ due+=feeOf(s); paid+=paidOf(s); });
+    var due=0,paid=0; c.students.forEach(function(s){ due+=feeOf(s); paid+=paidOf(s); S.di+=dueI(s); S.pi+=paidI(s); S.dp+=dueP(s); S.pp+=paidP(s); if(isBours(s)) S.nb++; });
     due=Math.round(due*100)/100; paid=Math.round(paid*100)/100;
     T.n+=c.students.length; T.due+=due; T.paid+=paid;
     rows+='<tr><td>'+esc(c.name)+'</td><td class="n">'+c.students.length+'</td><td class="n">'+fmt(due)+'</td><td class="n">'+fmt(paid)+'</td><td class="n">'+balHtml(Math.round((due-paid)*100)/100)+'</td></tr>';
@@ -1196,16 +1219,18 @@ function renderFinances(){
   T.due=Math.round(T.due*100)/100; T.paid=Math.round(T.paid*100)/100;
   var tb=Math.round((T.due-T.paid)*100)/100;
   setH($('#finBody'),rows);
-  $('#finTot').innerHTML='<div><b>'+fmt(T.due)+'</b><span>Total dû</span></div><div><b>'+fmt(T.paid)+'</b><span>Total reçu ('+pct(T.paid,T.due)+')</span></div><div class="bal '+(tb>0?'due':'ok')+'"><b>'+fmt(tb)+'</b><span>Solde</span></div>';
+  $('#finTot').innerHTML='<div><b>'+fmt(T.due)+'</b><span>Total dû</span></div><div><b>'+fmt(T.paid)+'</b><span>Total reçu ('+pct(T.paid,T.due)+')</span></div><div class="bal '+(tb>0?'due':'ok')+'"><b>'+fmt(tb)+'</b><span>Solde</span></div>'+
+    '<div><b>'+fmt(S.pi)+'</b><span>Inscriptions reçues (sur '+fmt(S.di)+')</span></div><div><b>'+fmt(S.pp)+'</b><span>Participation annuelle reçue (sur '+fmt(S.dp)+')</span></div><div><b>'+S.nb+'</b><span>Élèves boursiers</span></div>';
   var sel=$('#finCls'); if(document.activeElement!==sel){
     sel.innerHTML=cfg.classes.map(function(c){return '<option value="'+esc(c.id)+'"'+(c.id===curClass().id?' selected':'')+'>'+esc(c.name)+'</option>';}).join('');
   }
   var cl=cfg.classes.filter(function(c){return c.id===sel.value;})[0]||curClass();
   setH($('#finRows'),cl.students.map(function(s){
-    return '<tr><td class="tl">'+esc(s.name)+(isBours(s)?' <span class="hint">(boursier)</span>':'')+'</td><td class="n">'+fmt(feeOf(s))+'</td><td class="n">'+fmt(paidOf(s))+'</td><td class="n">'+balHtml(balOf(s))+'</td><td><button type="button" class="ghost sm" data-fsid="'+esc(s.id)+'">Paiement</button></td></tr>';
+    return '<tr><td class="tl">'+esc(s.name)+(isBours(s)?' <span class="hint">(boursier)</span>':'')+'</td><td class="n">'+fmt(feeOf(s))+'</td><td class="n">'+fmt(paidOf(s))+'</td><td class="n">'+balHtml(balOf(s))+'</td><td class="n">'+balHtml(r2(dueI(s)-paidI(s)))+'</td><td class="n">'+balHtml(r2(dueP(s)-paidP(s)))+'</td><td><button type="button" class="ghost sm" data-fsid="'+esc(s.id)+'">Paiement</button></td></tr>';
   }).join(''));
 }
-$('#finFee').addEventListener('change',function(e){ if(cfgLocked()) return; cfg.fin.fee=money(e.target.value); saveCfg(); renderAll(); toast('Frais d\'inscription enregistrés pour tous les élèves.'); });
+$('#finInsc').addEventListener('change',function(e){ if(cfgLocked()) return; cfg.fin.insc=money(e.target.value); cfg.fin.fee=r2(cfg.fin.insc+(cfg.fin.part||0)); saveCfg(); renderAll(); toast('Frais d\'inscription enregistrés pour tous les élèves.'); });
+$('#finPart').addEventListener('change',function(e){ if(cfgLocked()) return; cfg.fin.part=money(e.target.value); cfg.fin.fee=r2((cfg.fin.insc||0)+cfg.fin.part); saveCfg(); renderAll(); toast('Frais de participation annuelle enregistrés pour tous les élèves.'); });
 $('#finCur').addEventListener('change',function(e){ if(cfgLocked()) return; cfg.fin.cur=e.target.value==='USD'?'USD':'HTG'; saveCfg(); renderAll(); });
 $('#finCls').addEventListener('change',function(e){ pickClassSilent(e.target.value); renderFinances(); });
 function pickClassSilent(id){ cur.cls=id; rememberClass(); }
@@ -1215,9 +1240,9 @@ $('#finRows').addEventListener('click',function(e){
   cur.cls=cl.id; var st=cl.students.filter(function(x){return x.id===b.dataset.fsid;})[0]; if(st){ pf.confirmPay=null; openProf('student',st); }
 });
 $('#finCsv').addEventListener('click',function(){
-  var rows=[['Année scolaire','Classe','Élève','Monnaie','Frais dus','Total reçu','Solde','Détail des paiements']];
+  var rows=[['Année scolaire','Classe','Élève','Monnaie','Frais dus (total)','Inscription due','Inscription reçue','Participation due','Participation reçue','Total reçu','Solde','Détail des paiements']];
   cfg.classes.forEach(function(c){ c.students.forEach(function(s){
-    rows.push([cfg.year,c.name,s.name,cfg.fin.cur,feeOf(s),paidOf(s),balOf(s),((s.f&&s.f.pay)||[]).map(function(x){return (x.d||'')+' : '+x.a+(x.n?' ('+x.n+')':'');}).join(' | ')]);
+    rows.push([cfg.year,c.name,s.name,cfg.fin.cur,feeOf(s),dueI(s),paidI(s),dueP(s),paidP(s),paidOf(s),balOf(s),((s.f&&s.f.pay)||[]).map(function(x){return (x.d||'')+' : '+x.a+' '+payLbl(x)+(x.n?' ('+x.n+')':'');}).join(' | ')]);
   }); });
   saveFile('finances-'+cfg.year+'-'+todayIso()+'.csv',csvText(rows),'text/csv');
 });
@@ -1302,9 +1327,12 @@ $('#pfPdf').addEventListener('click',function(){
     var s=pf.obj, pay=((s.f&&s.f.pay)||[]).slice().sort(function(a,b){return (a.d||'').localeCompare(b.d||'');});
     pdfNeed(o,80); o.y+=10; d.setFont('helvetica','bold'); d.setFontSize(9); d.setTextColor(75,88,114); d.text('FINANCES',M,o.y+8); o.y+=14; d.setDrawColor(211,218,230); d.line(M,o.y,M+CW,o.y); o.y+=6;
     function row(l,v,bold,col){ pdfNeed(o,20); d.setFont('helvetica','normal'); d.setFontSize(10); d.setTextColor(110,120,140); d.text(pdfTxt(l),M,o.y+10); d.setFont('helvetica',bold?'bold':'normal'); d.setFontSize(11); d.setTextColor(col[0],col[1],col[2]); d.text(pdfTxt(v),M+CW,o.y+10,{align:'right'}); o.y+=20; }
-    row("Frais d'inscription",pdfMoney(feeOf(s)),false,[17,27,46]);
-    pay.forEach(function(x){ row('Paiement reçu le '+(x.d?shortDate(x.d):'-')+(x.n?' ('+x.n+')':''),pdfMoney(x.a),false,[17,27,46]); });
+    row("Frais d'inscription",pdfMoney(dueI(s)),false,[17,27,46]);
+    row('Frais de participation annuelle',pdfMoney(dueP(s)),false,[17,27,46]);
+    pay.forEach(function(x){ row('Paiement reçu le '+(x.d?shortDate(x.d):'-')+' - '+payLbl(x)+(x.n?' ('+x.n+')':''),pdfMoney(x.a),false,[17,27,46]); });
     row('Total reçu',pdfMoney(paidOf(s)),true,[17,27,46]);
+    row('Solde inscription',pdfMoney(r2(dueI(s)-paidI(s))),false,[75,88,114]);
+    row('Solde participation annuelle',pdfMoney(r2(dueP(s)-paidP(s))),false,[75,88,114]);
     var b=balOf(s); row('Solde à payer',pdfMoney(b),true,b>0?[179,38,30]:[23,114,74]);
     pdfSign(o);
   }
@@ -1325,7 +1353,7 @@ function rpFill(){
 }
 ['#rpScope','#rpCls'].forEach(function(q){ $(q).addEventListener('change',rpFill); });
 function finData(o){
-  var month=todayIso().slice(0,7), cls=[], out=[], pays=[], rows=[], bours=[], T={n:0,due:0,paid:0}, title, sub='';
+  var month=todayIso().slice(0,7), cls=[], out=[], pays=[], rows=[], bours=[], T={n:0,due:0,paid:0,di:0,pi:0,dp:0,pp:0}, title, sub='';
   var list=o.scope==='all'?cfg.classes:cfg.classes.filter(function(c){return c.id===o.cls;});
   var one=null, oneC=null;
   list.forEach(function(c){
@@ -1336,7 +1364,7 @@ function finData(o){
       if(bo&&!o.bours&&o.scope!=='student') return;
       if(o.scope==='student'){ one=s; oneC=c; }
       var f=feeOf(s), pd=paidOf(s), b=balOf(s); due+=f; paid+=pd; n++;
-      rows.push({n:s.name,c:c.name,due:f,paid:pd,bal:b,bo:bo});
+      rows.push({n:s.name,c:c.name,due:f,paid:pd,bal:b,bo:bo}); T.di+=dueI(s); T.pi+=paidI(s); T.dp+=dueP(s); T.pp+=paidP(s);
       if(bo) bours.push({n:s.name,c:c.name});
       if(b>0) out.push({n:s.name,c:c.name,due:f,paid:pd,bal:b});
       ((s.f&&s.f.pay)||[]).forEach(function(x){ if((x.d||'').slice(0,7)===month) pays.push({d:x.d,n:s.name,c:c.name,a:x.a,note:x.n}); });
@@ -1345,7 +1373,7 @@ function finData(o){
     cls.push({c:c.name,n:n,due:due,paid:paid,bal:Math.round((due-paid)*100)/100});
     T.n+=n; T.due+=due; T.paid+=paid;
   });
-  T.due=Math.round(T.due*100)/100; T.paid=Math.round(T.paid*100)/100; T.bal=Math.round((T.due-T.paid)*100)/100;
+  T.due=Math.round(T.due*100)/100; T.paid=Math.round(T.paid*100)/100; T.bal=Math.round((T.due-T.paid)*100)/100; T.di=r2(T.di); T.pi=r2(T.pi); T.dp=r2(T.dp); T.pp=r2(T.pp);
   pays.sort(function(a,b){return (a.d||'').localeCompare(b.d||'');});
   var mp=Math.round(pays.reduce(function(a,x){return a+x.a;},0)*100)/100;
   if(o.scope==='all'){ title='Rapport financier - toute l\'école'; }
@@ -1358,11 +1386,11 @@ function finText(){
   var D=finData(rpOpts()), t=['HOPE CHRISTIAN ACADEMY - '+D.title.toUpperCase(),'Année scolaire '+cfg.year+' - '+longDate(todayIso())+' ('+D.sub+')',''];
   if(D.o.scope==='student'){
     if(!D.one){ t.push('Aucun élève.'); return t.join('\n'); }
-    t.push('Frais d\'inscription : '+pdfMoney(D.T.due)+(isBours(D.one)?' (boursier)':''));
-    ((D.one.f&&D.one.f.pay)||[]).forEach(function(x){ t.push('Paiement du '+(x.d?shortDate(x.d):'-')+' : '+pdfMoney(x.a)+(x.n?' ('+x.n+')':'')); });
-    t.push('Total reçu : '+pdfMoney(D.T.paid),'Solde à payer : '+pdfMoney(D.T.bal));
+    t.push('Frais d\'inscription : '+pdfMoney(D.T.di)+(isBours(D.one)?' (boursier)':''),'Frais de participation annuelle : '+pdfMoney(D.T.dp));
+    ((D.one.f&&D.one.f.pay)||[]).forEach(function(x){ t.push('Paiement du '+(x.d?shortDate(x.d):'-')+' ('+payLbl(x)+') : '+pdfMoney(x.a)+(x.n?' ('+x.n+')':'')); });
+    t.push('Total reçu : '+pdfMoney(D.T.paid),'Solde inscription : '+pdfMoney(r2(D.T.di-D.T.pi)),'Solde participation annuelle : '+pdfMoney(r2(D.T.dp-D.T.pp)),'Solde à payer : '+pdfMoney(D.T.bal));
   } else {
-    t.push('Total dû : '+pdfMoney(D.T.due),'Total reçu : '+pdfMoney(D.T.paid)+' ('+pct(D.T.paid,D.T.due)+')','Solde à recevoir : '+pdfMoney(D.T.bal),'Reçu en '+monthLabel(D.month+'-01')+' : '+pdfMoney(D.monthTotal),'');
+    t.push('Total dû : '+pdfMoney(D.T.due),'Total reçu : '+pdfMoney(D.T.paid)+' ('+pct(D.T.paid,D.T.due)+')','Solde à recevoir : '+pdfMoney(D.T.bal),'Inscriptions : reçu '+pdfMoney(D.T.pi)+' sur '+pdfMoney(D.T.di),'Participation annuelle : reçu '+pdfMoney(D.T.pp)+' sur '+pdfMoney(D.T.dp),'Reçu en '+monthLabel(D.month+'-01')+' : '+pdfMoney(D.monthTotal),'');
     if(D.o.scope==='all'){ t.push('Par classe :'); D.cls.forEach(function(c){ t.push('- '+c.c+' : reçu '+pdfMoney(c.paid)+' sur '+pdfMoney(c.due)+' - solde '+pdfMoney(c.bal)); }); t.push(''); }
     t.push('Élèves avec un solde à payer : '+D.out.length); D.out.forEach(function(x){ t.push('- '+x.n+(D.o.scope==='all'?' ('+x.c+')':'')+' : '+pdfMoney(x.bal)); });
     if(D.o.bours&&D.bours.length){ t.push('','Élèves boursiers (ne paient rien) : '+D.bours.length); D.bours.forEach(function(x){ t.push('- '+x.n+' ('+x.c+')'); }); }
@@ -1397,6 +1425,7 @@ $('#finRepPdf').addEventListener('click',function(){
   }
   function note(t,col){ d.setFont('helvetica','normal'); d.setFontSize(10); d.setTextColor(col[0],col[1],col[2]); d.text(pdfTxt(t),M,o.y+10); o.y+=20; }
   boxes();
+  note('Inscriptions : reçu '+pdfMoney(D.T.pi)+' sur '+pdfMoney(D.T.di)+'   |   Participation annuelle : reçu '+pdfMoney(D.T.pp)+' sur '+pdfMoney(D.T.dp),[75,88,114]);
   if(sc==='student'){
     if(!D.one){ note('Aucun élève sélectionné.',[75,88,114]); }
     else {
@@ -1404,7 +1433,7 @@ $('#finRepPdf').addEventListener('click',function(){
       section('Paiements reçus');
       var pays=((D.one.f&&D.one.f.pay)||[]).slice().sort(function(a,b){return (a.d||'').localeCompare(b.d||'');});
       if(!pays.length) note('Aucun paiement enregistré.',[75,88,114]);
-      else { var H=[['Date',xN],['Note',M+100],['Montant',xC,true]]; thead(H); pays.forEach(function(x,i){ if(pdfNeed(o,19)) thead(H); tr(i,[[x.d?shortDate(x.d):'-',xN,false,80],[x.n||'',M+100,false,260],[pdfMoney(x.a),xC,true]],true); }); }
+      else { var H=[['Date',xN],['Note',M+100],['Montant',xC,true]]; thead(H); pays.forEach(function(x,i){ if(pdfNeed(o,19)) thead(H); tr(i,[[x.d?shortDate(x.d):'-',xN,false,80],[payLbl(x)+(x.n?' - '+x.n:''),M+100,false,260],[pdfMoney(x.a),xC,true]],true); }); }
     }
   } else {
     if(sc==='all'){
