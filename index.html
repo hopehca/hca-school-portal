@@ -241,6 +241,8 @@ tfoot td{font-weight:700;background:var(--surface-2);border-bottom:0;border-top:
   <header class="top">
     <div class="top-row">
       <div><p class="school">Hope Christian Academy</p><h1>HCA SCHOOL PORTAL</h1></div>
+      <button type="button" id="pwBtn" class="ghost sm" hidden>Mon mot de passe</button>
+      <button type="button" id="logout" class="ghost sm" hidden>Se déconnecter</button>
       <div class="zoom" role="group" aria-label="Taille du texte"><button type="button" id="zmOut" aria-label="Réduire le texte" title="Réduire le texte">A−</button><button type="button" id="zmIn" aria-label="Agrandir le texte" title="Agrandir le texte">A+</button></div>
       <span id="sync" class="sync" data-state="loading" role="status">Connexion…</span>
     </div>
@@ -260,6 +262,7 @@ tfoot td{font-weight:700;background:var(--surface-2);border-bottom:0;border-top:
     <button type="button" role="tab" data-view="envoyer" id="tab-envoyer" aria-selected="false">Envoyer</button>
     <button type="button" role="tab" data-view="finances" id="tab-finances" aria-selected="false">Finances</button>
     <button type="button" role="tab" data-view="donnees" id="tab-donnees" aria-selected="false">Données</button>
+    <button type="button" role="tab" data-view="users" id="tab-users" aria-selected="false" hidden>Utilisateurs</button>
   </div>
 
   <section id="v-saisie" aria-labelledby="tab-saisie">
@@ -359,6 +362,18 @@ tfoot td{font-weight:700;background:var(--surface-2);border-bottom:0;border-top:
     </div>
   </section>
 
+  <section id="v-users" aria-labelledby="tab-users" hidden>
+    <div class="app" style="gap:12px">
+      <div class="dcard">
+        <h2>Utilisateurs et accès</h2>
+        <p>Vous êtes l'administrateur : seul vous pouvez modifier les noms, fiches, finances et supprimer. Choisissez le rôle de chaque personne.</p>
+        <p class="hint"><b>Administrateur</b> : tout. <b>Saisie des présences</b> : marque les présences, lit le reste. <b>Lecture seule</b> : consulte seulement.</p>
+        <p class="hint">Pour ajouter une personne : dans Supabase, Authentication, Users, Add user. Elle apparaît ici après sa première connexion.</p>
+        <div id="usrList"></div>
+      </div>
+    </div>
+  </section>
+
   <section id="v-donnees" aria-labelledby="tab-donnees" hidden>
     <div class="app" style="gap:12px">
       <div class="dcard">
@@ -431,6 +446,25 @@ tfoot td{font-weight:700;background:var(--surface-2);border-bottom:0;border-top:
 <div id="toast" class="toast" role="status" hidden></div>
 <div id="printReport" aria-hidden="true"></div>
 
+<div id="login" class="modal" hidden>
+  <form class="mbox" id="loginForm" autocomplete="on" style="margin-top:12vh">
+    <div><p class="school">Hope Christian Academy</p><h1 style="font-size:1.6rem">HCA SCHOOL PORTAL</h1></div>
+    <p class="hint">Connectez-vous avec votre courriel et votre mot de passe. Les comptes sont créés par l'administrateur.</p>
+    <label class="lbl">Courriel ou numéro de téléphone<input id="lgEmail" type="text" inputmode="email" autocomplete="username" placeholder="nom@exemple.com ou 509XXXXXXXX" required></label>
+    <label class="lbl">Mot de passe<input id="lgPass" type="password" autocomplete="current-password" required></label>
+    <p id="lgErr" class="rmq" role="alert" hidden></p>
+    <button type="submit" class="btn" id="lgBtn">Se connecter</button>
+  </form>
+</div>
+<div id="pwModal" class="modal" hidden>
+  <form class="mbox" id="pwForm" autocomplete="off" style="margin-top:10vh">
+    <h3 style="margin:0;font-family:var(--display);font-size:1.25rem">Changer mon mot de passe</h3>
+    <label class="lbl">Nouveau mot de passe (8 caractères ou plus)<input id="pw1" type="password" autocomplete="new-password" minlength="8" required></label>
+    <label class="lbl">Répétez le nouveau mot de passe<input id="pw2" type="password" autocomplete="new-password" minlength="8" required></label>
+    <p id="pwErr" class="rmq" role="alert" hidden></p>
+    <div class="mact"><button type="submit" class="btn" id="pwSave">Enregistrer</button><button type="button" class="ghost" id="pwCancel">Annuler</button></div>
+  </form>
+</div>
 <div id="profModal" class="modal" hidden>
   <div class="mbox" role="dialog" aria-modal="true" aria-labelledby="pfTitle">
     <div class="mhead"><div class="av" id="pfAv"></div><div style="min-width:0"><h3 id="pfTitle"></h3><div class="sub" id="pfSub"></div></div></div>
@@ -443,6 +477,7 @@ tfoot td{font-weight:700;background:var(--surface-2);border-bottom:0;border-top:
     <div class="mact"><span class="hint grow" id="pfNote"></span><button type="button" class="ghost" id="pfPdf">Enregistrer en PDF</button><button type="button" class="btn" id="pfClose">Fermer</button></div>
   </div>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 (function(){
@@ -563,7 +598,7 @@ function saveCfg(){
   });
 }
 function ensureConfig(){
-  if(store.cfgExists) return Promise.resolve();
+  if(store.cfgExists || (store.sb && !store.isOwner)) return Promise.resolve();
   var body = cfgBody();
   return enqueue('config/main', function(){
     if(store.cfgExists) return;
@@ -819,13 +854,14 @@ function renderAll(){
 }
 function setView(v){
   cur.view=v;
-  ['saisie','resume','envoyer','finances','donnees'].forEach(function(n){
+  ['saisie','resume','envoyer','finances','donnees','users'].forEach(function(n){
     $('#v-'+n).hidden = n!==v;
     $('#tab-'+n).setAttribute('aria-selected', String(n===v));
   });
   if(v==='envoyer') renderEnvoyer();
   if(v==='resume') renderPM();
   if(v==='finances') renderFinances();
+  if(v==='users') renderUsers();
   if(v==='donnees') renderDonnees();
 }
 var tt;
@@ -847,9 +883,12 @@ function subscribeDay(){
 function subscribeCfg(){
   store.unsubCfg = store.db.doc('config/main').onSnapshot(function(snap){
     if(snap.metadata && snap.metadata.fromCache && !store.cfgReady) return;
-    store.cfgReady=true; store.cfgExists=snap.exists;
+    var wasReady=store.cfgReady; store.cfgReady=true; store.cfgExists=snap.exists;
+    if(!snap.exists && store.sb && store.isOwner){ saveCfg(); }
     if(snap.exists){
-      cfg=normalizeCfg(snap.data());
+      var nc=normalizeCfg(snap.data());
+      if(store.sb && wasReady && (!$('#profModal').hidden || JSON.stringify({classes:nc.classes,recip:nc.recip,example:nc.example,year:nc.year,fin:nc.fin})===JSON.stringify(cfgBody()))){ renderSync(); return; }
+      cfg=nc;
       if(!cfg.classes.some(function(c){return c.id===cur.cls;})) cur.cls=cfg.classes[0].id;
     }
     renderAll();
@@ -1397,6 +1436,128 @@ $('#finRepPdf').addEventListener('click',function(){
   pdfDone(o,'rapport-financier-'+(sc==='student'&&D.one?slug(D.one.name):sc==='class'&&D.cls[0]?slug(D.cls[0].c):'ecole')+'-'+todayIso()+'.pdf','Rapport financier');
 });
 
+
+/* ---------- Supabase : connexion, rôles, base de données en ligne ---------- */
+var SB={url:'https://avtsvelmfpsoapjoxgve.supabase.co', key:'sb_publishable_h6Vq-GjRXqK5v5a99Qx-YA_PEl65mpm'};
+var sbc=null;
+var ROLES=[['admin','Administrateur'],['saisie','Saisie des présences'],['lecture','Lecture seule']];
+function sbErr(e){
+  if(!e) return e; var code=String(e.code||'');
+  if(code==='42501'||e.status===401||e.status===403||/row-level security|permission denied/i.test(e.message||'')) return {code:'invalid_argument',message:e.message};
+  return {code:'unavailable',message:e.message};
+}
+function makeSbDb(c){
+  function chk(r){ if(r.error) throw sbErr(r.error); return r.data; }
+  function snap(exists,data){ return {exists:exists,data:function(){return data;},metadata:{fromCache:false}}; }
+  function watch(load,table,filter){
+    var ch=null;
+    try{ ch=c.channel('w-'+table+'-'+Math.random().toString(36).slice(2)).on('postgres_changes',Object.assign({event:'*',schema:'public',table:table},filter?{filter:filter}:{}),function(){ load(); }).subscribe(); }catch(e){}
+    var t=setInterval(load,20000);
+    return function(){ clearInterval(t); try{ if(ch) c.removeChannel(ch); }catch(e){} };
+  }
+  return {
+    doc:function(path){
+      var parts=path.split('/'), col=parts[0], id=parts[1];
+      if(col==='config'){
+        return {
+          onSnapshot:function(cb,err){
+            var live=true;
+            function load(){ c.from('app_config').select('data').eq('id','main').maybeSingle().then(function(r){ if(!live) return; if(r.error){ if(err) err(sbErr(r.error)); return; } cb(snap(!!r.data, r.data?r.data.data:null)); }); }
+            load(); var un=watch(load,'app_config');
+            return function(){ live=false; un(); };
+          },
+          set:function(body){ return c.from('app_config').upsert({id:'main',data:body,updated_at:new Date().toISOString(),updated_by:store.uid||null}).then(chk).then(function(){}); },
+          update:function(body){ return this.set(body); }
+        };
+      }
+      return {
+        onSnapshot:function(cb,err){
+          var live=true;
+          function load(){ c.from('attendance_days').select('data').eq('day',id).maybeSingle().then(function(r){ if(!live) return; if(r.error){ if(err) err(sbErr(r.error)); return; } cb(snap(!!r.data, r.data?{r:r.data.data}:null)); }); }
+          load(); var un=watch(load,'attendance_days','day=eq.'+id);
+          return function(){ live=false; un(); };
+        },
+        set:function(body){ return c.from('attendance_days').upsert({day:id,data:body.r||{},updated_at:new Date().toISOString(),updated_by:store.uid||null}).then(chk).then(function(){}); },
+        update:function(body){ return c.rpc('merge_day',{p_day:id,p_recs:body.r||{}}).then(chk).then(function(){}); }
+      };
+    },
+    collection:function(){
+      return { get:function(){ return c.from('attendance_days').select('day,data').then(function(r){ var rows=chk(r)||[]; return {docs:rows.map(function(x){ return {id:x.day,data:function(){return {r:x.data};}}; })}; }); } };
+    }
+  };
+}
+function loginId(v){
+  v=String(v||'').trim();
+  if(v.indexOf('@')>=0) return v;
+  var d=v.replace(/\D/g,'').replace(/^00/,'');
+  return d?d+'@phone.hca.school':v;
+}
+function showId(e){ var m=/^(\d+)@phone\.hca\.school$/i.exec(e||''); return m?('Tél. '+m[1]):(e||''); }
+function showLogin(msg){
+  $('#login').hidden=false; $('#lgBtn').disabled=false;
+  var e=$('#lgErr'); e.hidden=!msg; e.textContent=msg||'';
+  setTimeout(function(){ try{ $('#lgEmail').focus(); }catch(x){} },50);
+}
+function startSupabase(){
+  try{ sbc=window.supabase.createClient(SB.url,SB.key,{auth:{persistSession:true,autoRefreshToken:true}}); }catch(e){ store.mode='local'; subscribeDay(); renderAll(); return; }
+  store.mode='loading'; renderAll();
+  sbc.auth.getSession().then(function(r){
+    if(r.data&&r.data.session) afterLogin(r.data.session); else showLogin();
+  }).catch(function(){ showLogin('Connexion impossible. Vérifiez votre internet.'); });
+  sbc.auth.onAuthStateChange(function(ev){ if(ev==='SIGNED_OUT'){ location.reload(); } });
+}
+function afterLogin(session){
+  store.uid=session.user.id; store.email=session.user.email||'';
+  sbc.from('profiles').select('role').eq('id',store.uid).maybeSingle().then(function(r){
+    var role=(r.data&&r.data.role)||'';
+    if(!role){ sbc.auth.signOut().then(function(){ showLogin("Ce compte n'a pas encore de rôle. Contactez l'administrateur."); }); return; }
+    $('#login').hidden=true; store.sb=true; store.role=role;
+    store.isOwner=(role==='admin'); store.readonly=(role==='lecture');
+    store.db=makeSbDb(sbc); store.mode='online'; days={};
+    $('#logout').hidden=false; $('#pwBtn').hidden=false; $('#tab-users').hidden=!store.isOwner;
+    renderAll(); subscribeCfg(); subscribeDay();
+  });
+}
+$('#loginForm').addEventListener('submit',function(e){
+  e.preventDefault(); if(!sbc) return;
+  $('#lgBtn').disabled=true; $('#lgErr').hidden=true;
+  sbc.auth.signInWithPassword({email:loginId($('#lgEmail').value),password:$('#lgPass').value}).then(function(r){
+    if(r.error||!r.data.session){ showLogin('Courriel ou mot de passe incorrect.'); return; }
+    $('#lgPass').value=''; afterLogin(r.data.session);
+  }).catch(function(){ showLogin('Connexion impossible. Vérifiez votre internet.'); });
+});
+$('#pwBtn').addEventListener('click',function(){ $('#pw1').value=''; $('#pw2').value=''; $('#pwErr').hidden=true; $('#pwModal').hidden=false; setTimeout(function(){ $('#pw1').focus(); },50); });
+$('#pwCancel').addEventListener('click',function(){ $('#pwModal').hidden=true; });
+$('#pwForm').addEventListener('submit',function(e){
+  e.preventDefault(); if(!sbc) return;
+  var a=$('#pw1').value, b=$('#pw2').value, er=$('#pwErr');
+  function bad(m){ er.textContent=m; er.hidden=false; }
+  if(a.length<8){ bad('Le mot de passe doit avoir au moins 8 caractères.'); return; }
+  if(a!==b){ bad('Les deux mots de passe ne sont pas identiques.'); return; }
+  $('#pwSave').disabled=true;
+  sbc.auth.updateUser({password:a}).then(function(r){
+    $('#pwSave').disabled=false;
+    if(r.error){ bad("Le mot de passe n'a pas pu être changé. Essayez un mot de passe plus difficile."); return; }
+    $('#pwModal').hidden=true; toast('Mot de passe changé.');
+  }).catch(function(){ $('#pwSave').disabled=false; bad('Connexion impossible.'); });
+});
+$('#logout').addEventListener('click',function(){ if(sbc) sbc.auth.signOut(); });
+function renderUsers(){
+  if(!store.sb||!store.isOwner) return;
+  sbc.from('profiles').select('id,email,role').order('email').then(function(r){
+    var rows=r.data||[];
+    $('#usrList').innerHTML='<div class="tablewrap"><table><thead><tr><th scope="col" class="tl">Courriel</th><th scope="col">Rôle</th></tr></thead><tbody>'+rows.map(function(u){
+      var me=u.id===store.uid;
+      return '<tr><td class="tl">'+esc(showId(u.email))+(me?' <span class="hint">(vous)</span>':'')+'</td><td><select data-uid="'+esc(u.id)+'"'+(me?' disabled':'')+'>'+ROLES.map(function(x){return '<option value="'+x[0]+'"'+(x[0]===u.role?' selected':'')+'>'+x[1]+'</option>';}).join('')+'</select></td></tr>';
+    }).join('')+'</tbody></table></div>';
+  });
+}
+$('#usrList').addEventListener('change',function(e){
+  var id=e.target.dataset&&e.target.dataset.uid; if(!id||!store.isOwner||id===store.uid) return;
+  var role=e.target.value;
+  sbc.from('profiles').update({role:role}).eq('id',id).then(function(r){ if(r.error){ toast("Le rôle n'a pas pu être changé."); renderUsers(); } else toast('Rôle enregistré.'); });
+});
+
 /* ---------- Données : année, sauvegarde, restauration ---------- */
 function renderDonnees(){
   var y0=parseInt(schoolYear(),10), list=[];
@@ -1695,6 +1856,7 @@ function init(){
   if(!cfg.classes.some(function(c){return c.id===cur.cls;})) cur.cls=cfg.classes[0].id;
   setView('saisie'); renderAll();
 
+  if(!(window.claude && window.claude.use) && SB.url && SB.key && window.supabase){ startSupabase(); return; }
   var getDb = (window.claude && window.claude.use) ? window.claude.use('db') : Promise.resolve(null);
   Promise.resolve(getDb).catch(function(){ return null; }).then(function(db){
     if(!db){ store.mode='local'; subscribeDay(); renderAll(); return; }
