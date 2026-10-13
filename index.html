@@ -334,9 +334,9 @@ tfoot td{font-weight:700;background:var(--surface-2);border-bottom:0;border-top:
         <h2>Frais de l'école</h2>
         <p>Ces montants s'appliquent à tous les élèves. Le total par élève est la somme des deux. Pour un élève qui paie un autre montant (bourse, rabais), changez-le dans sa fiche.</p>
         <div class="fadd">
-          <label class="lbl" for="finInsc">Frais d'inscription<input id="finInsc" type="number" inputmode="decimal" min="0" step="0.01"></label>
+          <label class="lbl" for="finInsc">Frais d'inscriptions<input id="finInsc" type="number" inputmode="decimal" min="0" step="0.01"></label>
           <label class="lbl" for="finPart">Frais de participation annuelle<input id="finPart" type="number" inputmode="decimal" min="0" step="0.01"></label>
-          <label class="lbl" for="finCur">Monnaie<select id="finCur" class="drow"><option value="HTG">HTG (gourdes)</option><option value="USD">USD (dollars)</option></select></label>
+          <label class="lbl" for="finCur">Monnaie<select id="finCur" class="drow"><option value="HTG">gdes (gourdes)</option><option value="USD">USD (dollars)</option></select></label>
           <div style="display:flex;flex-direction:column;gap:6px;font-weight:500"><span>Total par élève</span><b id="finTotFee" style="font-size:1.25rem;padding:8px 0"></b></div>
         </div>
       </div>
@@ -1147,7 +1147,8 @@ function checkAbsAlert(map){
 
 /* ---------- Finances ---------- */
 function setH(el,h){ if(el._h!==h){ el._h=h; el.innerHTML=h; } }
-function fmt(n){ return Number(n).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' '+cfg.fin.cur; }
+function curLbl(){ return cfg.fin.cur==='USD' ? 'USD' : 'gdes'; }
+function fmt(n){ return Number(n).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+' '+curLbl(); }
 function isBours(s){ return !!(s.f&&s.f.sch); }
 function feeOf(s){ if(isBours(s)) return 0; return (s.f&&s.f.fee!=null)?s.f.fee:cfg.fin.fee; }
 function paidOf(s){ return Math.round(((s.f&&s.f.pay)||[]).reduce(function(a,x){return a+x.a;},0)*100)/100; }
@@ -1327,7 +1328,7 @@ $('#pfPdf').addEventListener('click',function(){
     var s=pf.obj, pay=((s.f&&s.f.pay)||[]).slice().sort(function(a,b){return (a.d||'').localeCompare(b.d||'');});
     pdfNeed(o,80); o.y+=10; d.setFont('helvetica','bold'); d.setFontSize(9); d.setTextColor(75,88,114); d.text('FINANCES',M,o.y+8); o.y+=14; d.setDrawColor(211,218,230); d.line(M,o.y,M+CW,o.y); o.y+=6;
     function row(l,v,bold,col){ pdfNeed(o,20); d.setFont('helvetica','normal'); d.setFontSize(10); d.setTextColor(110,120,140); d.text(pdfTxt(l),M,o.y+10); d.setFont('helvetica',bold?'bold':'normal'); d.setFontSize(11); d.setTextColor(col[0],col[1],col[2]); d.text(pdfTxt(v),M+CW,o.y+10,{align:'right'}); o.y+=20; }
-    row("Frais d'inscription",pdfMoney(dueI(s)),false,[17,27,46]);
+    row("Frais d'inscriptions",pdfMoney(dueI(s)),false,[17,27,46]);
     row('Frais de participation annuelle',pdfMoney(dueP(s)),false,[17,27,46]);
     pay.forEach(function(x){ row('Paiement reçu le '+(x.d?shortDate(x.d):'-')+' - '+payLbl(x)+(x.n?' ('+x.n+')':''),pdfMoney(x.a),false,[17,27,46]); });
     row('Total reçu',pdfMoney(paidOf(s)),true,[17,27,46]);
@@ -1386,7 +1387,7 @@ function finText(){
   var D=finData(rpOpts()), t=['HOPE CHRISTIAN ACADEMY - '+D.title.toUpperCase(),'Année scolaire '+cfg.year+' - '+longDate(todayIso())+' ('+D.sub+')',''];
   if(D.o.scope==='student'){
     if(!D.one){ t.push('Aucun élève.'); return t.join('\n'); }
-    t.push('Frais d\'inscription : '+pdfMoney(D.T.di)+(isBours(D.one)?' (boursier)':''),'Frais de participation annuelle : '+pdfMoney(D.T.dp));
+    t.push('Frais d\'inscriptions : '+pdfMoney(D.T.di)+(isBours(D.one)?' (boursier)':''),'Frais de participation annuelle : '+pdfMoney(D.T.dp));
     ((D.one.f&&D.one.f.pay)||[]).forEach(function(x){ t.push('Paiement du '+(x.d?shortDate(x.d):'-')+' ('+payLbl(x)+') : '+pdfMoney(x.a)+(x.n?' ('+x.n+')':'')); });
     t.push('Total reçu : '+pdfMoney(D.T.paid),'Solde inscription : '+pdfMoney(r2(D.T.di-D.T.pi)),'Solde participation annuelle : '+pdfMoney(r2(D.T.dp-D.T.pp)),'Solde à payer : '+pdfMoney(D.T.bal));
   } else {
