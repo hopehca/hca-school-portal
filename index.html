@@ -526,7 +526,8 @@ function schoolYear(){ var d=new Date(), y=d.getFullYear(); return d.getMonth()>
 var PF={
   student:[['dob','Date de naissance','date'],['phone','Téléphone de l\'élève','tel'],['email','Courriel','email'],['address','Adresse','text','full'],
     ['sec','Parents / tuteurs'],['father','Nom du père','text'],['mother','Nom de la mère','text'],['guardian','Tuteur ou tutrice (si autre)','text','full'],['pphone','Téléphone des parents','tel'],['pemail','Courriel des parents','email'],
-    ['sec','Urgence'],['contact','Personne à contacter','text'],['cphone','Téléphone de cette personne','tel']],
+    ['sec','Urgence'],['contact','Personne à contacter','text'],['cphone','Téléphone de cette personne','tel'],
+    ['sec','Note'],['note','Note (à vérifier, remarque)','text','full']],
   teacher:[['dob','Date de naissance','date'],['status','Situation','select','', ['','Célibataire','Marié(e)']],['phone','Téléphone','tel'],['email','Courriel','email'],['address','Adresse','text','full'],
     ['sec','Personne à contacter'],['contact','Nom de la personne','text'],['cphone','Téléphone de cette personne','tel']]
 };
