@@ -1,3 +1,21 @@
+<!doctype html>
+<html lang="fr"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="Présences, finances et fiches des élèves - Hope Christian Academy, Moleard.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Hope Christian Academy">
+<meta property="og:title" content="HCA SCHOOL PORTAL">
+<meta property="og:description" content="Hope Christian Academy, Moleard - présences, finances et fiches des élèves.">
+<meta property="og:url" content="https://hopehca.github.io/hca-school-portal/">
+<meta property="og:image" content="https://hopehca.github.io/hca-school-portal/hip-share.png">
+<meta property="og:image:type" content="image/png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Logo de Hope Christian Academy">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://hopehca.github.io/hca-school-portal/hca-share.png">
+<style>html{color-scheme:light dark}body{margin:0}</style>
 <title>HCA School Portal</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -36,6 +54,7 @@
   color-scheme:dark;
 }
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 html{font-size:112.5%}
 body{background:var(--bg);color:var(--ink);font:1rem/1.45 var(--body);padding-inline:16px;padding-block:20px 64px}
 .app{max-width:1000px;margin-inline:auto;display:flex;flex-direction:column;gap:18px}
@@ -258,6 +277,10 @@ tfoot td{font-weight:700;background:var(--surface-2);border-bottom:0;border-top:
 #v-finances{--accent:var(--c-finances);--accent-soft:var(--c-finances-soft);--accent-ink:var(--accent-ink-sec,#FFFFFF)}
 #tab-donnees{--tc:var(--c-donnees);--tsoft:var(--c-donnees-soft)}
 #v-donnees{--accent:var(--c-donnees);--accent-soft:var(--c-donnees-soft);--accent-ink:var(--accent-ink-sec,#FFFFFF)}
+#tab-depenses{--tc:var(--c-users);--tsoft:var(--c-users-soft)}
+#v-depenses{--accent:var(--c-users);--accent-soft:var(--c-users-soft);--accent-ink:var(--accent-ink-sec,#FFFFFF)}
+#tab-paie{--tc:var(--c-envoyer);--tsoft:var(--c-envoyer-soft)}
+#v-paie{--accent:var(--c-envoyer);--accent-soft:var(--c-envoyer-soft);--accent-ink:var(--accent-ink-sec,#FFFFFF)}
 #tab-users{--tc:var(--c-users);--tsoft:var(--c-users-soft)}
 #v-users{--accent:var(--c-users);--accent-soft:var(--c-users-soft);--accent-ink:var(--accent-ink-sec,#FFFFFF)}
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--accent-ink-sec:#0D1422}}
@@ -297,6 +320,8 @@ section[id^="v-"] h2{color:var(--accent)}
     <button type="button" role="tab" data-view="resume" id="tab-resume" aria-selected="false">Résumé du jour</button>
     <button type="button" role="tab" data-view="envoyer" id="tab-envoyer" aria-selected="false">Envoyer</button>
     <button type="button" role="tab" data-view="finances" id="tab-finances" aria-selected="false">Finances</button>
+    <button type="button" role="tab" data-view="depenses" id="tab-depenses" aria-selected="false" hidden>Dépenses</button>
+    <button type="button" role="tab" data-view="paie" id="tab-paie" aria-selected="false" hidden>Paie</button>
     <button type="button" role="tab" data-view="donnees" id="tab-donnees" aria-selected="false">Données</button>
     <button type="button" role="tab" data-view="users" id="tab-users" aria-selected="false" hidden>Utilisateurs</button>
   </div>
@@ -396,6 +421,70 @@ section[id^="v-"] h2{color:var(--accent)}
         <div class="tablewrap"><table><thead><tr><th scope="col" class="tl">Élève</th><th scope="col">Total dû</th><th scope="col">Reçu</th><th scope="col">Balance restante</th><th scope="col"></th></tr></thead><tbody id="finRows"></tbody></table></div>
         <div class="drow"><button type="button" class="ghost" id="finPdf">Situation de la classe (PDF)</button>
           <button type="button" class="ghost" id="finCsv">Finances en tableau (Excel)</button></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="v-depenses" aria-labelledby="tab-depenses" hidden>
+    <div class="app" style="gap:12px">
+      <div class="dcard" id="dpSetup" hidden>
+        <h2>Configuration requise (une seule fois)</h2>
+        <p id="dpSetupTxt"></p>
+      </div>
+      <div class="dcard" id="dpMain">
+        <h2>Nouvelle dépense</h2>
+        <p class="hint">Cette page est visible seulement par vous (la super administratrice ou le super administrateur).</p>
+        <form class="fadd" id="dpForm" autocomplete="off">
+          <label class="lbl">Date<input id="dpDate" type="date"></label>
+          <label class="lbl">Montant<input id="dpAmt" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00"></label>
+          <label class="lbl full">Catégorie<select id="dpCat" class="drow"></select></label>
+          <label class="lbl full">Description<input id="dpDesc" type="text" maxlength="120" placeholder="Ex. : cahiers, facture d'électricité"></label>
+          <button type="submit" class="btn full">Ajouter la dépense</button>
+        </form>
+      </div>
+      <div class="dcard" id="dpList">
+        <h2>Liste des dépenses</h2>
+        <label class="lbl" for="dpMon">Période<select id="dpMon" class="drow"></select></label>
+        <div class="fsum" id="dpTot"></div>
+        <div class="tablewrap"><table><thead><tr><th scope="col" class="tl">Catégorie</th><th scope="col">Nombre</th><th scope="col">Total</th></tr></thead><tbody id="dpCatRows"></tbody></table></div>
+        <div class="tablewrap"><table><thead><tr><th scope="col" class="tl">Date</th><th scope="col" class="tl">Catégorie</th><th scope="col" class="tl">Description</th><th scope="col">Montant</th><th scope="col"></th></tr></thead><tbody id="dpRows"></tbody></table></div>
+        <div class="drow"><button type="button" class="btn" id="dpPdf">Rapport des dépenses (PDF)</button><button type="button" class="ghost" id="dpCsv">Dépenses en tableau (Excel)</button></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="v-paie" aria-labelledby="tab-paie" hidden>
+    <div class="app" style="gap:12px">
+      <div class="dcard" id="ppSetup" hidden>
+        <h2>Configuration requise (une seule fois)</h2>
+        <p id="ppSetupTxt"></p>
+      </div>
+      <div class="dcard" id="ppMain">
+        <h2>Employés</h2>
+        <p class="hint">Cette page est visible seulement par vous (la super administratrice ou le super administrateur). Le salaire mensuel peut être changé quand il le faut.</p>
+        <div id="stList" class="recips"></div>
+        <form class="fadd" id="stForm" autocomplete="off">
+          <label class="lbl full">Nom de l'employé(e)<input id="stName" type="text" maxlength="60"></label>
+          <label class="lbl">Poste<input id="stRole" type="text" maxlength="60" placeholder="Ex. : professeur(e), secrétaire"></label>
+          <label class="lbl">Salaire mensuel<input id="stPay" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00"></label>
+          <button type="submit" class="btn full">Ajouter l'employé(e)</button>
+        </form>
+      </div>
+      <div class="dcard" id="ppPay">
+        <h2>Paie du mois</h2>
+        <label class="lbl" for="ppMon">Mois<select id="ppMon" class="drow"></select></label>
+        <div class="fsum" id="ppTot"></div>
+        <div class="tablewrap"><table><thead><tr><th scope="col" class="tl">Employé(e)</th><th scope="col">Salaire</th><th scope="col">Payé</th><th scope="col">Balance</th><th scope="col"></th></tr></thead><tbody id="ppRows"></tbody></table></div>
+        <h2 style="font-size:1rem">Enregistrer un paiement</h2>
+        <form class="fadd" id="ppForm" autocomplete="off">
+          <label class="lbl full">Employé(e)<select id="ppWho" class="drow"></select></label>
+          <label class="lbl">Date du paiement<input id="ppDate" type="date"></label>
+          <label class="lbl">Montant payé<input id="ppAmt" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00"></label>
+          <label class="lbl full">Note (chèque n°, avance…)<input id="ppNote" type="text" maxlength="80"></label>
+          <button type="submit" class="btn full">Ajouter le paiement</button>
+        </form>
+        <div class="tablewrap"><table><thead><tr><th scope="col" class="tl">Date</th><th scope="col" class="tl">Employé(e)</th><th scope="col">Montant</th><th scope="col"></th></tr></thead><tbody id="ppHist"></tbody></table></div>
+        <div class="drow"><button type="button" class="btn" id="ppPdf">Rapport de paie (PDF)</button><button type="button" class="ghost" id="ppCsv">Paie en tableau (Excel)</button></div>
       </div>
     </div>
   </section>
@@ -531,7 +620,7 @@ setLogos();
 /* ---------- Langue : français / English ---------- */
 var LANG='fr';
 try{ var _l=localStorage.getItem('hca-lang'); if(_l==='en'||_l==='fr') LANG=_l; }catch(e){}
-var EN_DICT={"Reçu (PDF)": "Receipt (PDF)", "Reçu de paiement": "Payment receipt", "Reçu de paiement (PDF)": "Payment receipt (PDF)", "Date de réception": "Date received", "Montant reçu": "Amount received", "Reçu -": "Receipt -", "Établi le": "Issued on", "Dollars haïtiens": "Haitian Dollars", "Dollars haïtiens ($)": "Haitian Dollars ($)", "Inscription": "Inscription", "Frais de participation": "Frais de participation", "Frais de l'année": "Fees for the year", "Total dû par élève": "Total due per student", "Ces montants s'appliquent à tous les élèves. Pour un élève qui paie un autre montant (bourse, rabais), changez-le dans sa fiche.": "These amounts apply to all students. For a student who pays a different amount (scholarship, discount), change it in the student's profile.", "Frais enregistrés pour tous les élèves.": "Fees saved for all students.", "Montant reçu et date": "Amount received and date", "Montant reçu le": "Amount received on", "Balance restante": "Remaining balance", "Balance": "Balance", "Total dû (boursier)": "Total due (scholarship)", "Total dû (frais personnalisés)": "Total due (custom fees)", "Total dû de cet élève (laisser vide = total de l'école :": "This student's total due (leave empty = school total:", "Hope Christian Academy": "Hope Christian Academy", "Registre de présence": "Attendance register", "Agrandir le texte": "Increase text size", "Réduire le texte": "Decrease text size", "Taille du texte": "Text size", "Jour précédent": "Previous day", "Jour suivant": "Next day", "Aujourd'hui": "Today", "· aujourd'hui": "· today", "Mon mot de passe": "My password", "Se déconnecter": "Log out", "Se connecter": "Log in", "Connexion…": "Connecting…", "Sections": "Sections", "Langue": "Language", "Saisie": "Entry", "Résumé du jour": "Daily summary", "Envoyer": "Send", "Finances": "Finances", "Données": "Data", "Utilisateurs": "Users", "Date": "Date", "Classe": "Class", "Élève": "Student", "Élèves": "Students", "élève": "student", "élèves": "students", "élèves,": "students,", "Saisie des présences": "Attendance entry", "Saisie des présences seulement": "Attendance entry only", "Présence": "Attendance", "Présences": "Attendance", "Présents": "Present", "Présent": "Present", "Absent": "Absent", "Absents": "Absent", "En retard": "Late", "Retards": "Late arrivals", "Absences": "Absences", "= Présent ·": "= Present ·", "= En retard ·": "= Late ·", "= Absent": "= Absent", "R": "L", "Absence notifiée": "Notified absence", "Notifié": "Notified", "Non notifié": "Not notified", "Notification de l'absence de": "Absence notification for", "Présence de": "Attendance of", "Absents notifiés": "Notified absences", "Absents non notifiés": "Unnotified absences", "Absents notifiés :": "Notified absences:", "Absents non notifiés :": "Unnotified absences:", "Abs. notifiés": "Notified abs.", "Abs. non notifiés": "Unnotified abs.", "Absent - notifié": "Absent - notified", "Absent - non notifié": "Absent - not notified", "À saisir": "To enter", "Non saisi": "Not entered", "Non saisis :": "Not entered:", "Marquer le reste présent": "Mark the rest present", "Jours saisis": "Days entered", "% présence": "% attendance", "Taux de présence du mois": "Monthly attendance rate", "Résumé de l'école": "School summary", "Détail par classe": "Detail by class", "Détail par élève (": "Detail by student (", "Toutes les classes": "All classes", "Total": "Total", "Total de la classe": "Class total", "Alerte : 2 absences ou plus dans le mois": "Alert: 2 or more absences in the month", "Élèves sous 80 % de présence ce mois-ci :": "Students under 80% attendance this month:", "Aucun élève sous 80 % ce mois-ci.": "No student under 80% this month.", "absences ou plus ce mois-ci :": "absences or more this month:", "absences ou plus ce mois-ci.": "absences or more this month.", "absences ou plus ce mois. Prévenir l'école dans « Envoyer ».": "absences or more this month. Notify the school in “Send”.", "Aucun élève n'a": "No student has", "absences [": "absences [", "non notifiée(s)": "unnotified", "non notifiée(s))": "unnotified)", "notifiée(s),": "notified,", "(notifiés :": "(notified:", ", non notifiés :": ", unnotified:", "| Absents :": "| Absent:", "| En retard :": "| Late:", "En retard :": "Late:", "Présents :": "Present:", "Message d'alerte à l'école (modifiable)": "Alert message to the school (editable)", "Ajoutez un e-mail ou un numéro WhatsApp dans « Direction » plus bas pour envoyer l'alerte.": "Add an e-mail or WhatsApp number under “Management” below to send the alert.", "« % présence » = (présents + en retard) divisé par les élèves déjà marqués. Un élève en retard compte comme présent.": "“% attendance” = (present + late) divided by students already marked. A late student counts as present.", "« À saisir » compte les élèves dont la présence n'est pas encore marquée à cette date. La notification s'applique aux absences.": "“To enter” counts students whose attendance is not yet marked for this date. Notification applies to absences.", "(selon la date choisie en haut).": "(for the date chosen above).", "(selon la date choisie en haut). Toutes les absences comptent, notifiées ou non.": "(for the date chosen above). All absences count, notified or not.", ": aucun élève enregistré.": ": no students registered.", "Modifier les noms": "Edit names", "Terminer": "Done", "Retirer ce nom": "Remove this name", "Retirer": "Remove", "Oui, retirer": "Yes, remove", "Annuler": "Cancel", "Retirer ce nom de la classe ?": "Remove this name from the class?", "Touchez un nom pour le corriger. « Retirer ce nom » demande une confirmation, et une classe garde toujours au moins un nom.": "Tap a name to correct it. “Remove this name” asks for confirmation, and a class always keeps at least one name.", "Ajouter à la liste": "Add to the list", "Ajouter": "Add", "Nom de l'élève à ajouter": "Name of the student to add", "Prénom et nom de l'élève": "Student's first and last name", "Nom de l'élève": "Student name", "Prénom et nom": "First and last name", "Aucun élève dans cette classe. Ajoutez le premier nom ci-dessous.": "No students in this class. Add the first name below.", "Aucun élève dans cette classe.": "No students in this class.", "Un nom peut être corrigé, pas effacé.": "A name can be corrected, not erased.", "Une classe doit garder au moins un nom.": "A class must keep at least one name.", "Le nom du professeur peut être modifié, pas effacé.": "The teacher's name can be edited, not erased.", "Nom de la classe": "Class name", "Professeur(e)": "Teacher", "Professeur(e) :": "Teacher:", "Professeur(e) ·": "Teacher ·", "Professeur(e) -": "Teacher -", "— Professeur(e) :": "— Teacher:", "-  Professeur(e) :": "-  Teacher:", "Professeur(e) de la classe": "Class teacher", "Écrivez ici le nom du professeur": "Write the teacher's name here", "Élève ·": "Student ·", "Élève -": "Student -", "Fiche": "Profile", "Fiche ✓": "Profile ✓", "Fiche de l'élève": "Student profile", "Fiche du professeur": "Teacher profile", "Les noms de ces classes sont des exemples. Remplacez-les par les vrais noms avec « Modifier les noms ».": "These class names are examples. Replace them with the real names using “Edit names”.", "Fermer": "Close", "Enregistrer": "Save", "Enregistré en ligne": "Saved online", "Sur cet appareil seulement": "On this device only", "Échec de l'enregistrement": "Save failed", "Ajouter / changer la photo": "Add / change photo", "Retirer la photo": "Remove photo", "Les changements sont enregistrés automatiquement.": "Changes are saved automatically.", "Lecture seule": "Read only", "Lecture seule.": "Read only.", "Date de naissance": "Date of birth", "Téléphone": "Phone", "Téléphone de l'élève": "Student's phone", "Courriel": "Email", "Adresse": "Address", "Parents / tuteurs": "Parents / guardians", "Nom du père": "Father's name", "Nom de la mère": "Mother's name", "Tuteur ou tutrice (si autre)": "Guardian (if other)", "Téléphone des parents": "Parents' phone", "Courriel des parents": "Parents' email", "Urgence": "Emergency", "Personne à contacter": "Contact person", "Téléphone de cette personne": "This person's phone", "Situation": "Marital status", "Célibataire": "Single", "Marié(e)": "Married", "— Choisir —": "— Choose —", "Note (à vérifier, remarque)": "Note (to check, remark)", "Frais d'inscription": "Registration fee", "Frais d'inscription :": "Registration fee:", "Frais d'inscription par élève": "Registration fee per student", "Frais d'inscription enregistrés pour tous les élèves.": "Registration fee saved for all students.", "Ce montant s'applique à tous les élèves. Pour un élève qui paie un autre montant (bourse, rabais), changez-le dans sa fiche.": "This amount applies to all students. For a student who pays a different amount (scholarship, discount), change it in the student's profile.", "Monnaie": "Currency", "HTG (gourdes)": "HTG (gourdes)", "USD (dollars)": "USD (US dollars)", "Frais de cet élève (laisser vide = frais de l'école :": "This student's fee (leave empty = school fee:", "Boursier(ère) : ne paie rien": "Scholarship student: pays nothing", "Boursier(ère) - ne paie rien": "Scholarship student - pays nothing", "(boursier)": "(scholarship)", "(avance)": "(advance)", "(vous)": "(you)", "Élève payant": "Paying student", "Reçu": "Received", "Reçu en": "Received in", "Dû": "Due", "Solde": "Balance", "Solde à payer": "Balance to pay", "Solde à payer :": "Balance to pay:", "Solde à recevoir": "Balance to receive", "Solde à recevoir :": "Balance to receive:", "Frais dus": "Fees due", "Total dû": "Total due", "Total dû :": "Total due:", "Total reçu": "Total received", "Total reçu (": "Total received (", "Total reçu :": "Total received:", "Montant": "Amount", "Montant reçu": "Amount received", "Note (reçu n°, paiement partiel…)": "Note (receipt no., partial payment…)", "Ajouter le paiement": "Add the payment", "Paiement": "Payment", "Paiements reçus": "Payments received", "Paiements reçus en": "Payments received in", "Paiement du": "Payment on", "Paiement reçu le": "Payment received on", "Détail des paiements": "Payment details", "Aucun paiement reçu.": "No payment received.", "Aucun paiement enregistré.": "No payment recorded.", "Aucun paiement enregistré ce mois-ci.": "No payment recorded this month.", "Paiement enregistré.": "Payment recorded.", "Paiement retiré.": "Payment removed.", "Entrez un montant supérieur à 0.": "Enter an amount greater than 0.", "Tous les soldes sont réglés.": "All balances are settled.", ": reçu": ": received", "Par classe": "By class", "Par classe :": "By class:", "Rapport financier": "Financial report", "Rapport financier (PDF)": "Financial report (PDF)", "Rapport financier -": "Financial report -", "Rapport financier - toute l'école": "Financial report - whole school", "Relevé financier -": "Financial statement -", "Situation financière": "Financial situation", "Situation financière -": "Financial situation -", "Pour qui ?": "For whom?", "Toute l'école (toutes les classes)": "Whole school (all classes)", "Une classe": "One class", "Un élève": "One student", "Classe du rapport": "Report class", "Inclure les boursiers (élèves qui ne paient rien)": "Include scholarship students (students who pay nothing)", "Décochez « Inclure les boursiers » pour les retirer des totaux et des listes. Un élève devient boursier dans sa fiche.": "Untick “Include scholarship students” to remove them from totals and lists. A student becomes a scholarship student in the student's profile.", "Élèves avec un solde à payer (": "Students with a balance to pay (", "Élèves avec un solde à payer :": "Students with a balance to pay:", "Élèves boursiers (ne paient rien) :": "Scholarship students (pay nothing):", "Élèves boursiers - ne paient rien (": "Scholarship students - pay nothing (", "Élèves avec": "Students with", "Finances en tableau (Excel)": "Finances as spreadsheet (Excel)", "Présences en tableau (Excel)": "Attendance as spreadsheet (Excel)", "Fiches en tableau (Excel)": "Profiles as spreadsheet (Excel)", "Texte du rapport (modifiable avant l'envoi)": "Report text (editable before sending)", "Rétablir le texte automatique": "Restore automatic text", "Rapport envoyé par (administrateur ou administratrice)": "Report sent by (administrator)", "Ce nom est ajouté en bas du rapport. Il est gardé sur cet appareil.": "This name is added at the bottom of the report. It is kept on this device.", "Rapport envoyé par :": "Report sent by:", "Message envoyé par :": "Message sent by:", "Rapport établi par :": "Report prepared by:", "Établi par :": "Prepared by:", "Le message s'ouvre déjà rédigé dans WhatsApp ou Gmail. Relisez-le puis appuyez sur Envoyer dans cette application. Si rien ne s'ouvre, copiez le texte et collez-le dans votre messagerie.": "The message opens already written in WhatsApp or Gmail. Read it, then press Send in that app. If nothing opens, copy the text and paste it into your messaging app.", "Le message est préparé dans l'autre application. Relisez-le puis envoyez-le depuis là-bas. Si rien ne s'est ouvert, utilisez « Copier le texte ».": "The message is prepared in the other app. Read it, then send it from there. If nothing opened, use “Copy text”.", "Copier le texte": "Copy text", "Télécharger en PDF": "Download as PDF", "Enregistrer en PDF": "Save as PDF", "Situation de la classe (PDF)": "Class status (PDF)", "Texte copié.": "Text copied.", "Rapport copié.": "Report copied.", "Copie impossible : utilisez le PDF.": "Copy failed: use the PDF.", "Sélectionnez le texte puis copiez-le (Ctrl+C ou appui long).": "Select the text, then copy it (Ctrl+C or long press).", "Direction : WhatsApp et e-mail": "Management: WhatsApp and e-mail", "Autres personnes : WhatsApp seulement": "Other people: WhatsApp only", "Directeur pédagogique": "Academic Director", "Secrétaire": "Secretary", "Administratrice": "Administrator", "Administrateur": "Administrator", "Destinataire": "Recipient", "Destinataire retiré.": "Recipient removed.", "Retirer ce destinataire ?": "Remove this recipient?", "Aucun autre destinataire pour le moment.": "No other recipient yet.", "Nom de la personne": "Person's name", "Numéro WhatsApp": "WhatsApp number", "Nom": "Name", "Nom et fonction": "Name and role", "Signature": "Signature", "Indiquez un nom et un numéro WhatsApp.": "Enter a name and a WhatsApp number.", "Numéros WhatsApp : avec l'indicatif du pays, sans « + » ni espaces (Haïti : 509).": "WhatsApp numbers: with the country code, without “+” or spaces (Haiti: 509).", "Autre messagerie": "Other messaging app", "Attestation": "Certification", "Je certifie que les présences indiquées ci-dessus sont exactes.": "I certify that the attendance shown above is accurate.", "N°": "No.", "Statut": "Status", "Statut :": "Status:", "Année scolaire": "School year", "Année scolaire :": "School year:", "Nouvelle année scolaire :": "New school year:", "Passer à l'année suivante": "Move to the next year", "Oui, passer à l'année suivante": "Yes, move to the next year", "L'année choisie apparaît sur les rapports et les PDF. Les présences déjà saisies restent enregistrées à leur date.": "The chosen year appears on reports and PDFs. Attendance already entered stays saved under its date.", "Les classes, les professeurs, les élèves et leurs fiches sont conservés. Seule l'année change. Téléchargez d'abord une sauvegarde ci-dessous.": "Classes, teachers, students and their profiles are kept. Only the year changes. Download a backup below first.", "Sauvegarder": "Back up", "Télécharger la sauvegarde complète": "Download the full backup", "Téléchargez une copie de tout : classes, professeurs, élèves, fiches, photos et toutes les présences. Gardez le fichier en lieu sûr (clé USB, courriel à vous-même).": "Download a copy of everything: classes, teachers, students, profiles, photos and all attendance. Keep the file somewhere safe (USB drive, e-mail to yourself).", "Restaurer": "Restore", "Rechargez un fichier de sauvegarde. Cela remplace les classes, élèves, fiches et présences actuels.": "Reload a backup file. This replaces the current classes, students, profiles and attendance.", "Choisir un fichier de sauvegarde": "Choose a backup file", "Sauvegarde du": "Backup from", "jours de présences. Remplacer les données actuelles ?": "days of attendance. Replace the current data?", "Oui, remplacer les données": "Yes, replace the data", "Données restaurées.": "Data restored.", "Ce fichier n'est pas une sauvegarde valide.": "This file is not a valid backup.", "Utilisateurs et accès": "Users and access", "Vous êtes l'administrateur : seul vous pouvez modifier les noms, fiches, finances et supprimer. Choisissez le rôle de chaque personne.": "You are the administrator: only you can edit names, profiles, finances and delete. Choose each person's role.", "Pour ajouter une personne : dans Supabase, Authentication, Users, Add user. Elle apparaît ici après sa première connexion.": "To add a person: in Supabase, Authentication, Users, Add user. They appear here after their first login.", ": tout.": ": everything.", ": marque les présences, lit le reste.": ": marks attendance, reads the rest.", ": consulte seulement.": ": view only.", "Rôle": "Role", "Rôle enregistré.": "Role saved.", "Le rôle n'a pas pu être changé.": "The role could not be changed.", "Type": "Type", "Ce compte n'a pas encore de rôle. Contactez l'administrateur.": "This account has no role yet. Contact the administrator.", "Connectez-vous avec votre courriel et votre mot de passe. Les comptes sont créés par l'administrateur.": "Log in with your email and password. Accounts are created by the administrator.", "Courriel ou numéro de téléphone": "Email or phone number", "nom@exemple.com ou 509XXXXXXXX": "name@example.com or 509XXXXXXXX", "Mot de passe": "Password", "Changer mon mot de passe": "Change my password", "Nouveau mot de passe (8 caractères ou plus)": "New password (8 characters or more)", "Répétez le nouveau mot de passe": "Repeat the new password", "Connexion impossible.": "Login failed.", "Connexion impossible. Vérifiez votre internet.": "Login failed. Check your internet.", "Courriel ou mot de passe incorrect.": "Incorrect email or password.", "Le mot de passe doit avoir au moins 8 caractères.": "The password must have at least 8 characters.", "Les deux mots de passe ne sont pas identiques.": "The two passwords do not match.", "Mot de passe changé.": "Password changed.", "Le mot de passe n'a pas pu être changé. Essayez un mot de passe plus difficile.": "The password could not be changed. Try a stronger password.", "Modification refusée : votre accès est en lecture seule.": "Change refused: your access is read-only.", "Seul l'administrateur peut modifier les noms, les fiches et les finances.": "Only the administrator can edit names, profiles and finances.", "Nom retiré de la classe.": "Name removed from the class.", "L'enregistrement a échoué. Réessayez dans un instant.": "Saving failed. Try again in a moment.", "Cette image n'a pas pu être lue.": "This image could not be read.", "Le fichier n'a pas pu être enregistré.": "The file could not be saved.", "Le téléchargement n'est pas disponible ici.": "Download is not available here.", "Le téléchargement n'est pas disponible ici. Copiez le texte à la place.": "Download is not available here. Copy the text instead.", "Téléchargement lancé.": "Download started.", "Téléchargement du PDF lancé.": "PDF download started.", "Le PDF n'a pas pu être créé ici. Utilisez l'export Excel.": "The PDF could not be created here. Use the Excel export.", "Le PDF n'a pas pu être créé. Utilisez « Copier le texte ».": "The PDF could not be created. Use “Copy text”.", "Le PDF n'a pas pu être enregistré. Copiez le texte à la place.": "The PDF could not be saved. Copy the text instead.", "Les présences ne sont pas partagées entre appareils. Ouvrez l'application en étant connecté pour les partager.": "Attendance is not shared between devices. Open the app while logged in to share it.", "Aucun élève sélectionné.": "No student selected.", "Aucun élève.": "No student.", "PRÉSENCES —": "ATTENDANCE —", "TOTAL —": "TOTAL —", "HOPE CHRISTIAN ACADEMY  -  Année scolaire": "HOPE CHRISTIAN ACADEMY  -  School year", "HOPE CHRISTIAN ACADEMY - Année scolaire": "HOPE CHRISTIAN ACADEMY - School year", "HOPE CHRISTIAN ACADEMY - ALERTE ABSENCES": "HOPE CHRISTIAN ACADEMY - ABSENCE ALERT", "Hope Christian Academy - Alerte absences -": "Hope Christian Academy - Absence alert -", "Hope Christian Academy - Présences du": "Hope Christian Academy - Attendance on", "— toutes les classes": "— all classes", "Mois :": "Month:", "Mois affiché :": "Month shown:", "Tél.": "Tel.", "Sauvegarde": "Backup", "saisis": "entered", "boursiers exclus": "scholarship students excluded", "boursiers inclus": "scholarship students included", "- solde": "- balance", " sur ": " of ", "Inscription (registre)": "Registration fee (register)", "Versement (registre)": "Payment (register)", "lecture": "read-only", "saisie": "entry", "nom@exemple.com": "name@example.com", "1ère Année Fondamentale": "1st Fundamental Year", "2e Année Fondamentale": "2nd Fundamental Year", "3e Année Fondamentale": "3rd Fundamental Year", "4e Année Fondamentale": "4th Fundamental Year", "5e Année Fondamentale": "5th Fundamental Year", "6e Année Fondamentale": "6th Fundamental Year"};
+var EN_DICT={"Dépenses": "Expenses", "Paie": "Payroll", "Nouvelle dépense": "New expense", "Cette page est visible seulement par vous (la super administratrice ou le super administrateur).": "This page is visible only to you (the super administrator).", "Catégorie": "Category", "Description": "Description", "Ex. : cahiers, facture d'électricité": "E.g.: notebooks, electricity bill", "Ajouter la dépense": "Add the expense", "Liste des dépenses": "List of expenses", "Période": "Period", "Toute la période": "Whole period", "Total de la période": "Total for the period", "Total depuis le début": "Total since the start", "Nombre": "Count", "Aucune dépense pour cette période.": "No expense for this period.", "Rapport des dépenses (PDF)": "Expenses report (PDF)", "Dépenses en tableau (Excel)": "Expenses as spreadsheet (Excel)", "Rapport des dépenses": "Expenses report", "PAR CATÉGORIE": "BY CATEGORY", "Dépense enregistrée.": "Expense recorded.", "Dépense retirée.": "Expense removed.", "Fournitures": "Supplies", "Électricité et eau": "Electricity and water", "Loyer": "Rent", "Transport": "Transport", "Entretien et réparations": "Maintenance and repairs", "Nourriture": "Food", "Événements": "Events", "Matériel": "Equipment", "Autres": "Other", "Employés": "Employees", "Le salaire mensuel peut être changé quand il le faut.": "The monthly salary can be changed whenever needed.", "Nom de l'employé(e)": "Employee's name", "Poste": "Position", "Ex. : professeur(e), secrétaire": "E.g.: teacher, secretary", "Salaire mensuel": "Monthly salary", "Ajouter l'employé(e)": "Add the employee", "Aucun employé pour le moment. Ajoutez le premier ci-dessous.": "No employee yet. Add the first one below.", "N'est plus employé(e)": "No longer an employee", "Paie du mois": "Payroll for the month", "Mois": "Month", "Salaires du mois": "Salaries for the month", "Total payé": "Total paid", "Employé(e)": "Employee", "Salaire": "Salary", "Payé": "Paid", "Payer le solde": "Pay the balance", "Fiche de paie (PDF)": "Payslip (PDF)", "Enregistrer un paiement": "Record a payment", "Date du paiement": "Payment date", "Montant payé": "Amount paid", "Note (chèque n°, avance…)": "Note (check no., advance…)", "Aucun employé.": "No employee.", "Aucun paiement ce mois-ci.": "No payment this month.", "Rapport de paie (PDF)": "Payroll report (PDF)", "Paie en tableau (Excel)": "Payroll as spreadsheet (Excel)", "Rapport de paie": "Payroll report", "Fiche de paie": "Payslip", "Fiche de paie -": "Payslip -", "Employé(e) ajouté(e).": "Employee added.", "Entrez le nom de l'employé(e).": "Enter the employee's name.", "Choisissez un(e) employé(e).": "Choose an employee.", "Salaire du mois": "Salary for the month", "Signature de l'employé(e)": "Employee's signature", "Signature de la direction": "Management's signature", "Configuration requise (une seule fois)": "Setup required (one time only)", "Dans Supabase, ouvrez SQL Editor et lancez la commande du fichier HCA-prive-depenses-paie.txt. Elle crée un espace réservé à votre seul courriel. Ensuite, rafraîchissez cette page.": "In Supabase, open SQL Editor and run the command from the file HCA-prive-depenses-paie.txt. It creates a space reserved for your email only. Then refresh this page.", "Impossible de charger cette page pour le moment. Rafraîchissez dans un instant.": "This page cannot be loaded right now. Refresh in a moment.", "Reçu (PDF)": "Receipt (PDF)", "Reçu de paiement": "Payment receipt", "Reçu de paiement (PDF)": "Payment receipt (PDF)", "Date de réception": "Date received", "Montant reçu": "Amount received", "Reçu -": "Receipt -", "Établi le": "Issued on", "Dollars haïtiens": "Haitian Dollars", "Dollars haïtiens ($)": "Haitian Dollars ($)", "Inscription": "Inscription", "Frais de participation": "Frais de participation", "Frais de l'année": "Fees for the year", "Total dû par élève": "Total due per student", "Ces montants s'appliquent à tous les élèves. Pour un élève qui paie un autre montant (bourse, rabais), changez-le dans sa fiche.": "These amounts apply to all students. For a student who pays a different amount (scholarship, discount), change it in the student's profile.", "Frais enregistrés pour tous les élèves.": "Fees saved for all students.", "Montant reçu et date": "Amount received and date", "Montant reçu le": "Amount received on", "Balance restante": "Remaining balance", "Balance": "Balance", "Total dû (boursier)": "Total due (scholarship)", "Total dû (frais personnalisés)": "Total due (custom fees)", "Total dû de cet élève (laisser vide = total de l'école :": "This student's total due (leave empty = school total:", "Hope Christian Academy": "Hope Christian Academy", "Registre de présence": "Attendance register", "Agrandir le texte": "Increase text size", "Réduire le texte": "Decrease text size", "Taille du texte": "Text size", "Jour précédent": "Previous day", "Jour suivant": "Next day", "Aujourd'hui": "Today", "· aujourd'hui": "· today", "Mon mot de passe": "My password", "Se déconnecter": "Log out", "Se connecter": "Log in", "Connexion…": "Connecting…", "Sections": "Sections", "Langue": "Language", "Saisie": "Entry", "Résumé du jour": "Daily summary", "Envoyer": "Send", "Finances": "Finances", "Données": "Data", "Utilisateurs": "Users", "Date": "Date", "Classe": "Class", "Élève": "Student", "Élèves": "Students", "élève": "student", "élèves": "students", "élèves,": "students,", "Saisie des présences": "Attendance entry", "Saisie des présences seulement": "Attendance entry only", "Présence": "Attendance", "Présences": "Attendance", "Présents": "Present", "Présent": "Present", "Absent": "Absent", "Absents": "Absent", "En retard": "Late", "Retards": "Late arrivals", "Absences": "Absences", "= Présent ·": "= Present ·", "= En retard ·": "= Late ·", "= Absent": "= Absent", "R": "L", "Absence notifiée": "Notified absence", "Notifié": "Notified", "Non notifié": "Not notified", "Notification de l'absence de": "Absence notification for", "Présence de": "Attendance of", "Absents notifiés": "Notified absences", "Absents non notifiés": "Unnotified absences", "Absents notifiés :": "Notified absences:", "Absents non notifiés :": "Unnotified absences:", "Abs. notifiés": "Notified abs.", "Abs. non notifiés": "Unnotified abs.", "Absent - notifié": "Absent - notified", "Absent - non notifié": "Absent - not notified", "À saisir": "To enter", "Non saisi": "Not entered", "Non saisis :": "Not entered:", "Marquer le reste présent": "Mark the rest present", "Jours saisis": "Days entered", "% présence": "% attendance", "Taux de présence du mois": "Monthly attendance rate", "Résumé de l'école": "School summary", "Détail par classe": "Detail by class", "Détail par élève (": "Detail by student (", "Toutes les classes": "All classes", "Total": "Total", "Total de la classe": "Class total", "Alerte : 2 absences ou plus dans le mois": "Alert: 2 or more absences in the month", "Élèves sous 80 % de présence ce mois-ci :": "Students under 80% attendance this month:", "Aucun élève sous 80 % ce mois-ci.": "No student under 80% this month.", "absences ou plus ce mois-ci :": "absences or more this month:", "absences ou plus ce mois-ci.": "absences or more this month.", "absences ou plus ce mois. Prévenir l'école dans « Envoyer ».": "absences or more this month. Notify the school in “Send”.", "Aucun élève n'a": "No student has", "absences [": "absences [", "non notifiée(s)": "unnotified", "non notifiée(s))": "unnotified)", "notifiée(s),": "notified,", "(notifiés :": "(notified:", ", non notifiés :": ", unnotified:", "| Absents :": "| Absent:", "| En retard :": "| Late:", "En retard :": "Late:", "Présents :": "Present:", "Message d'alerte à l'école (modifiable)": "Alert message to the school (editable)", "Ajoutez un e-mail ou un numéro WhatsApp dans « Direction » plus bas pour envoyer l'alerte.": "Add an e-mail or WhatsApp number under “Management” below to send the alert.", "« % présence » = (présents + en retard) divisé par les élèves déjà marqués. Un élève en retard compte comme présent.": "“% attendance” = (present + late) divided by students already marked. A late student counts as present.", "« À saisir » compte les élèves dont la présence n'est pas encore marquée à cette date. La notification s'applique aux absences.": "“To enter” counts students whose attendance is not yet marked for this date. Notification applies to absences.", "(selon la date choisie en haut).": "(for the date chosen above).", "(selon la date choisie en haut). Toutes les absences comptent, notifiées ou non.": "(for the date chosen above). All absences count, notified or not.", ": aucun élève enregistré.": ": no students registered.", "Modifier les noms": "Edit names", "Terminer": "Done", "Retirer ce nom": "Remove this name", "Retirer": "Remove", "Oui, retirer": "Yes, remove", "Annuler": "Cancel", "Retirer ce nom de la classe ?": "Remove this name from the class?", "Touchez un nom pour le corriger. « Retirer ce nom » demande une confirmation, et une classe garde toujours au moins un nom.": "Tap a name to correct it. “Remove this name” asks for confirmation, and a class always keeps at least one name.", "Ajouter à la liste": "Add to the list", "Ajouter": "Add", "Nom de l'élève à ajouter": "Name of the student to add", "Prénom et nom de l'élève": "Student's first and last name", "Nom de l'élève": "Student name", "Prénom et nom": "First and last name", "Aucun élève dans cette classe. Ajoutez le premier nom ci-dessous.": "No students in this class. Add the first name below.", "Aucun élève dans cette classe.": "No students in this class.", "Un nom peut être corrigé, pas effacé.": "A name can be corrected, not erased.", "Une classe doit garder au moins un nom.": "A class must keep at least one name.", "Le nom du professeur peut être modifié, pas effacé.": "The teacher's name can be edited, not erased.", "Nom de la classe": "Class name", "Professeur(e)": "Teacher", "Professeur(e) :": "Teacher:", "Professeur(e) ·": "Teacher ·", "Professeur(e) -": "Teacher -", "— Professeur(e) :": "— Teacher:", "-  Professeur(e) :": "-  Teacher:", "Professeur(e) de la classe": "Class teacher", "Écrivez ici le nom du professeur": "Write the teacher's name here", "Élève ·": "Student ·", "Élève -": "Student -", "Fiche": "Profile", "Fiche ✓": "Profile ✓", "Fiche de l'élève": "Student profile", "Fiche du professeur": "Teacher profile", "Les noms de ces classes sont des exemples. Remplacez-les par les vrais noms avec « Modifier les noms ».": "These class names are examples. Replace them with the real names using “Edit names”.", "Fermer": "Close", "Enregistrer": "Save", "Enregistré en ligne": "Saved online", "Sur cet appareil seulement": "On this device only", "Échec de l'enregistrement": "Save failed", "Ajouter / changer la photo": "Add / change photo", "Retirer la photo": "Remove photo", "Les changements sont enregistrés automatiquement.": "Changes are saved automatically.", "Lecture seule": "Read only", "Lecture seule.": "Read only.", "Date de naissance": "Date of birth", "Téléphone": "Phone", "Téléphone de l'élève": "Student's phone", "Courriel": "Email", "Adresse": "Address", "Parents / tuteurs": "Parents / guardians", "Nom du père": "Father's name", "Nom de la mère": "Mother's name", "Tuteur ou tutrice (si autre)": "Guardian (if other)", "Téléphone des parents": "Parents' phone", "Courriel des parents": "Parents' email", "Urgence": "Emergency", "Personne à contacter": "Contact person", "Téléphone de cette personne": "This person's phone", "Situation": "Marital status", "Célibataire": "Single", "Marié(e)": "Married", "— Choisir —": "— Choose —", "Note (à vérifier, remarque)": "Note (to check, remark)", "Frais d'inscription": "Registration fee", "Frais d'inscription :": "Registration fee:", "Frais d'inscription par élève": "Registration fee per student", "Frais d'inscription enregistrés pour tous les élèves.": "Registration fee saved for all students.", "Ce montant s'applique à tous les élèves. Pour un élève qui paie un autre montant (bourse, rabais), changez-le dans sa fiche.": "This amount applies to all students. For a student who pays a different amount (scholarship, discount), change it in the student's profile.", "Monnaie": "Currency", "HTG (gourdes)": "HTG (gourdes)", "USD (dollars)": "USD (US dollars)", "Frais de cet élève (laisser vide = frais de l'école :": "This student's fee (leave empty = school fee:", "Boursier(ère) : ne paie rien": "Scholarship student: pays nothing", "Boursier(ère) - ne paie rien": "Scholarship student - pays nothing", "(boursier)": "(scholarship)", "(avance)": "(advance)", "(vous)": "(you)", "Élève payant": "Paying student", "Reçu": "Received", "Reçu en": "Received in", "Dû": "Due", "Solde": "Balance", "Solde à payer": "Balance to pay", "Solde à payer :": "Balance to pay:", "Solde à recevoir": "Balance to receive", "Solde à recevoir :": "Balance to receive:", "Frais dus": "Fees due", "Total dû": "Total due", "Total dû :": "Total due:", "Total reçu": "Total received", "Total reçu (": "Total received (", "Total reçu :": "Total received:", "Montant": "Amount", "Montant reçu": "Amount received", "Note (reçu n°, paiement partiel…)": "Note (receipt no., partial payment…)", "Ajouter le paiement": "Add the payment", "Paiement": "Payment", "Paiements reçus": "Payments received", "Paiements reçus en": "Payments received in", "Paiement du": "Payment on", "Paiement reçu le": "Payment received on", "Détail des paiements": "Payment details", "Aucun paiement reçu.": "No payment received.", "Aucun paiement enregistré.": "No payment recorded.", "Aucun paiement enregistré ce mois-ci.": "No payment recorded this month.", "Paiement enregistré.": "Payment recorded.", "Paiement retiré.": "Payment removed.", "Entrez un montant supérieur à 0.": "Enter an amount greater than 0.", "Tous les soldes sont réglés.": "All balances are settled.", ": reçu": ": received", "Par classe": "By class", "Par classe :": "By class:", "Rapport financier": "Financial report", "Rapport financier (PDF)": "Financial report (PDF)", "Rapport financier -": "Financial report -", "Rapport financier - toute l'école": "Financial report - whole school", "Relevé financier -": "Financial statement -", "Situation financière": "Financial situation", "Situation financière -": "Financial situation -", "Pour qui ?": "For whom?", "Toute l'école (toutes les classes)": "Whole school (all classes)", "Une classe": "One class", "Un élève": "One student", "Classe du rapport": "Report class", "Inclure les boursiers (élèves qui ne paient rien)": "Include scholarship students (students who pay nothing)", "Décochez « Inclure les boursiers » pour les retirer des totaux et des listes. Un élève devient boursier dans sa fiche.": "Untick “Include scholarship students” to remove them from totals and lists. A student becomes a scholarship student in the student's profile.", "Élèves avec un solde à payer (": "Students with a balance to pay (", "Élèves avec un solde à payer :": "Students with a balance to pay:", "Élèves boursiers (ne paient rien) :": "Scholarship students (pay nothing):", "Élèves boursiers - ne paient rien (": "Scholarship students - pay nothing (", "Élèves avec": "Students with", "Finances en tableau (Excel)": "Finances as spreadsheet (Excel)", "Présences en tableau (Excel)": "Attendance as spreadsheet (Excel)", "Fiches en tableau (Excel)": "Profiles as spreadsheet (Excel)", "Texte du rapport (modifiable avant l'envoi)": "Report text (editable before sending)", "Rétablir le texte automatique": "Restore automatic text", "Rapport envoyé par (administrateur ou administratrice)": "Report sent by (administrator)", "Ce nom est ajouté en bas du rapport. Il est gardé sur cet appareil.": "This name is added at the bottom of the report. It is kept on this device.", "Rapport envoyé par :": "Report sent by:", "Message envoyé par :": "Message sent by:", "Rapport établi par :": "Report prepared by:", "Établi par :": "Prepared by:", "Le message s'ouvre déjà rédigé dans WhatsApp ou Gmail. Relisez-le puis appuyez sur Envoyer dans cette application. Si rien ne s'ouvre, copiez le texte et collez-le dans votre messagerie.": "The message opens already written in WhatsApp or Gmail. Read it, then press Send in that app. If nothing opens, copy the text and paste it into your messaging app.", "Le message est préparé dans l'autre application. Relisez-le puis envoyez-le depuis là-bas. Si rien ne s'est ouvert, utilisez « Copier le texte ».": "The message is prepared in the other app. Read it, then send it from there. If nothing opened, use “Copy text”.", "Copier le texte": "Copy text", "Télécharger en PDF": "Download as PDF", "Enregistrer en PDF": "Save as PDF", "Situation de la classe (PDF)": "Class status (PDF)", "Texte copié.": "Text copied.", "Rapport copié.": "Report copied.", "Copie impossible : utilisez le PDF.": "Copy failed: use the PDF.", "Sélectionnez le texte puis copiez-le (Ctrl+C ou appui long).": "Select the text, then copy it (Ctrl+C or long press).", "Direction : WhatsApp et e-mail": "Management: WhatsApp and e-mail", "Autres personnes : WhatsApp seulement": "Other people: WhatsApp only", "Directeur pédagogique": "Academic Director", "Secrétaire": "Secretary", "Administratrice": "Administrator", "Administrateur": "Administrator", "Destinataire": "Recipient", "Destinataire retiré.": "Recipient removed.", "Retirer ce destinataire ?": "Remove this recipient?", "Aucun autre destinataire pour le moment.": "No other recipient yet.", "Nom de la personne": "Person's name", "Numéro WhatsApp": "WhatsApp number", "Nom": "Name", "Nom et fonction": "Name and role", "Signature": "Signature", "Indiquez un nom et un numéro WhatsApp.": "Enter a name and a WhatsApp number.", "Numéros WhatsApp : avec l'indicatif du pays, sans « + » ni espaces (Haïti : 509).": "WhatsApp numbers: with the country code, without “+” or spaces (Haiti: 509).", "Autre messagerie": "Other messaging app", "Attestation": "Certification", "Je certifie que les présences indiquées ci-dessus sont exactes.": "I certify that the attendance shown above is accurate.", "N°": "No.", "Statut": "Status", "Statut :": "Status:", "Année scolaire": "School year", "Année scolaire :": "School year:", "Nouvelle année scolaire :": "New school year:", "Passer à l'année suivante": "Move to the next year", "Oui, passer à l'année suivante": "Yes, move to the next year", "L'année choisie apparaît sur les rapports et les PDF. Les présences déjà saisies restent enregistrées à leur date.": "The chosen year appears on reports and PDFs. Attendance already entered stays saved under its date.", "Les classes, les professeurs, les élèves et leurs fiches sont conservés. Seule l'année change. Téléchargez d'abord une sauvegarde ci-dessous.": "Classes, teachers, students and their profiles are kept. Only the year changes. Download a backup below first.", "Sauvegarder": "Back up", "Télécharger la sauvegarde complète": "Download the full backup", "Téléchargez une copie de tout : classes, professeurs, élèves, fiches, photos et toutes les présences. Gardez le fichier en lieu sûr (clé USB, courriel à vous-même).": "Download a copy of everything: classes, teachers, students, profiles, photos and all attendance. Keep the file somewhere safe (USB drive, e-mail to yourself).", "Restaurer": "Restore", "Rechargez un fichier de sauvegarde. Cela remplace les classes, élèves, fiches et présences actuels.": "Reload a backup file. This replaces the current classes, students, profiles and attendance.", "Choisir un fichier de sauvegarde": "Choose a backup file", "Sauvegarde du": "Backup from", "jours de présences. Remplacer les données actuelles ?": "days of attendance. Replace the current data?", "Oui, remplacer les données": "Yes, replace the data", "Données restaurées.": "Data restored.", "Ce fichier n'est pas une sauvegarde valide.": "This file is not a valid backup.", "Utilisateurs et accès": "Users and access", "Vous êtes l'administrateur : seul vous pouvez modifier les noms, fiches, finances et supprimer. Choisissez le rôle de chaque personne.": "You are the administrator: only you can edit names, profiles, finances and delete. Choose each person's role.", "Pour ajouter une personne : dans Supabase, Authentication, Users, Add user. Elle apparaît ici après sa première connexion.": "To add a person: in Supabase, Authentication, Users, Add user. They appear here after their first login.", ": tout.": ": everything.", ": marque les présences, lit le reste.": ": marks attendance, reads the rest.", ": consulte seulement.": ": view only.", "Rôle": "Role", "Rôle enregistré.": "Role saved.", "Le rôle n'a pas pu être changé.": "The role could not be changed.", "Type": "Type", "Ce compte n'a pas encore de rôle. Contactez l'administrateur.": "This account has no role yet. Contact the administrator.", "Connectez-vous avec votre courriel et votre mot de passe. Les comptes sont créés par l'administrateur.": "Log in with your email and password. Accounts are created by the administrator.", "Courriel ou numéro de téléphone": "Email or phone number", "nom@exemple.com ou 509XXXXXXXX": "name@example.com or 509XXXXXXXX", "Mot de passe": "Password", "Changer mon mot de passe": "Change my password", "Nouveau mot de passe (8 caractères ou plus)": "New password (8 characters or more)", "Répétez le nouveau mot de passe": "Repeat the new password", "Connexion impossible.": "Login failed.", "Connexion impossible. Vérifiez votre internet.": "Login failed. Check your internet.", "Courriel ou mot de passe incorrect.": "Incorrect email or password.", "Le mot de passe doit avoir au moins 8 caractères.": "The password must have at least 8 characters.", "Les deux mots de passe ne sont pas identiques.": "The two passwords do not match.", "Mot de passe changé.": "Password changed.", "Le mot de passe n'a pas pu être changé. Essayez un mot de passe plus difficile.": "The password could not be changed. Try a stronger password.", "Modification refusée : votre accès est en lecture seule.": "Change refused: your access is read-only.", "Seul l'administrateur peut modifier les noms, les fiches et les finances.": "Only the administrator can edit names, profiles and finances.", "Nom retiré de la classe.": "Name removed from the class.", "L'enregistrement a échoué. Réessayez dans un instant.": "Saving failed. Try again in a moment.", "Cette image n'a pas pu être lue.": "This image could not be read.", "Le fichier n'a pas pu être enregistré.": "The file could not be saved.", "Le téléchargement n'est pas disponible ici.": "Download is not available here.", "Le téléchargement n'est pas disponible ici. Copiez le texte à la place.": "Download is not available here. Copy the text instead.", "Téléchargement lancé.": "Download started.", "Téléchargement du PDF lancé.": "PDF download started.", "Le PDF n'a pas pu être créé ici. Utilisez l'export Excel.": "The PDF could not be created here. Use the Excel export.", "Le PDF n'a pas pu être créé. Utilisez « Copier le texte ».": "The PDF could not be created. Use “Copy text”.", "Le PDF n'a pas pu être enregistré. Copiez le texte à la place.": "The PDF could not be saved. Copy the text instead.", "Les présences ne sont pas partagées entre appareils. Ouvrez l'application en étant connecté pour les partager.": "Attendance is not shared between devices. Open the app while logged in to share it.", "Aucun élève sélectionné.": "No student selected.", "Aucun élève.": "No student.", "PRÉSENCES —": "ATTENDANCE —", "TOTAL —": "TOTAL —", "HOPE CHRISTIAN ACADEMY  -  Année scolaire": "HOPE CHRISTIAN ACADEMY  -  School year", "HOPE CHRISTIAN ACADEMY - Année scolaire": "HOPE CHRISTIAN ACADEMY - School year", "HOPE CHRISTIAN ACADEMY - ALERTE ABSENCES": "HOPE CHRISTIAN ACADEMY - ABSENCE ALERT", "Hope Christian Academy - Alerte absences -": "Hope Christian Academy - Absence alert -", "Hope Christian Academy - Présences du": "Hope Christian Academy - Attendance on", "— toutes les classes": "— all classes", "Mois :": "Month:", "Mois affiché :": "Month shown:", "Tél.": "Tel.", "Sauvegarde": "Backup", "saisis": "entered", "boursiers exclus": "scholarship students excluded", "boursiers inclus": "scholarship students included", "- solde": "- balance", " sur ": " of ", "Inscription (registre)": "Registration fee (register)", "Versement (registre)": "Payment (register)", "lecture": "read-only", "saisie": "entry", "nom@exemple.com": "name@example.com", "1ère Année Fondamentale": "1st Fundamental Year", "2e Année Fondamentale": "2nd Fundamental Year", "3e Année Fondamentale": "3rd Fundamental Year", "4e Année Fondamentale": "4th Fundamental Year", "5e Année Fondamentale": "5th Fundamental Year", "6e Année Fondamentale": "6th Fundamental Year"};
 var EN_EXACT={}, EN_SUB={}, EN_RE=null;
 (function(){
   var ks=[]; Object.keys(EN_DICT).forEach(function(k){ if(k.length>=5){ EN_SUB[k]=EN_DICT[k]; ks.push(k); } else EN_EXACT[k]=EN_DICT[k]; });
@@ -979,10 +1068,13 @@ function renderAll(){
   renderSync(); renderDate(); renderChips(); renderHead(); renderRoll(); renderResume(); renderEnvoyer();
   if(cur.view==='resume') renderPM();
   if(cur.view==='finances') renderFinances();
+  var cp=canPriv(); $('#tab-depenses').hidden=!cp; $('#tab-paie').hidden=!cp;
+  if(!cp&&(cur.view==='depenses'||cur.view==='paie')) setView('saisie');
+  if(cp&&!privStarted){ privStarted=true; privLoad(); }
 }
 function setView(v){
   cur.view=v;
-  ['saisie','resume','envoyer','finances','donnees','users'].forEach(function(n){
+  ['saisie','resume','envoyer','finances','depenses','paie','donnees','users'].forEach(function(n){
     $('#v-'+n).hidden = n!==v;
     $('#tab-'+n).setAttribute('aria-selected', String(n===v));
   });
@@ -991,6 +1083,7 @@ function setView(v){
   if(v==='finances') renderFinances();
   if(v==='users') renderUsers();
   if(v==='donnees') renderDonnees();
+  if(v==='depenses'||v==='paie') renderPriv();
 }
 var tt;
 function toast(m){ var el=$('#toast'); el.textContent=m; el.hidden=false; clearTimeout(tt); tt=setTimeout(function(){ el.hidden=true; },3400); }
@@ -1616,6 +1709,224 @@ $('#finRepPdf').addEventListener('click',function(){
 /* ---------- Supabase : connexion, rôles, base de données en ligne ---------- */
 var SB={url:'https://avtsvelmfpsoapjoxgve.supabase.co', key:'sb_publishable_h6Vq-GjRXqK5v5a99Qx-YA_PEl65mpm'};
 var sbc=null;
+/* ---------- Dépenses et paie : super administrateur seulement ---------- */
+var PRIV_EMAIL='hca.haiti@gmail.com';
+var priv={exp:[],staff:[],pay:[]}, privReady=false, privStarted=false, privErr='', pvc=null;
+var EXP_CATS=['Fournitures','Électricité et eau','Loyer','Transport','Entretien et réparations','Nourriture','Événements','Matériel','Autres'];
+function canPriv(){ return store.mode==='online' && store.isOwner && (!store.sb || String(store.email||'').toLowerCase()===PRIV_EMAIL); }
+function isDay(v){ return /^\d{4}-\d{2}-\d{2}$/.test(String(v)); }
+function cleanPriv(o){
+  o=(o&&typeof o==='object')?o:{}; var A=function(x){ return Array.isArray(x)?x:[]; };
+  return {
+    exp:A(o.exp).slice(0,5000).map(function(x){ return {id:String(x&&x.id||uid()),d:isDay(x&&x.d)?x.d:todayIso(),cat:String(x&&x.cat||'Autres').slice(0,40),desc:String(x&&x.desc||'').slice(0,120),a:money(x&&x.a)}; }).filter(function(x){return x.a>0;}),
+    staff:A(o.staff).slice(0,300).map(function(x){ return {id:String(x&&x.id||uid()),name:String(x&&x.name||'').slice(0,60),role:String(x&&x.role||'').slice(0,60),pay:money(x&&x.pay),off:!!(x&&x.off)}; }).filter(function(x){return x.name;}),
+    pay:A(o.pay).slice(0,10000).map(function(x){ return {id:String(x&&x.id||uid()),sid:String(x&&x.sid||''),m:/^\d{4}-\d{2}$/.test(String(x&&x.m))?x.m:todayIso().slice(0,7),d:isDay(x&&x.d)?x.d:todayIso(),a:money(x&&x.a),n:String(x&&x.n||'').slice(0,80)}; }).filter(function(x){return x.a>0&&x.sid;})
+  };
+}
+function privSetup(e){
+  var code=String(e&&e.code||''), msg=String(e&&e.message||'');
+  return (code==='42P01'||code==='PGRST205'||e.status===404||/does not exist|schema cache|admin_data/i.test(msg))?'setup':'err';
+}
+function privLoad(){
+  if(!canPriv()) return;
+  var p;
+  if(store.sb) p=sbc.from('admin_data').select('data').eq('id','main').maybeSingle().then(function(r){ if(r.error) throw r.error; return r.data?r.data.data:null; });
+  else p=Promise.resolve(store.db.doc('priv/main').get()).then(function(s){ var ex=typeof s.exists==='function'?s.exists():s.exists; return s&&ex?s.data():null; });
+  p.then(function(d){ priv=cleanPriv(d); privReady=true; privErr=''; renderPriv(); })
+   .catch(function(e){ privErr=privSetup(e||{}); renderPriv(); });
+}
+function privSave(){
+  if(!canPriv()||!privReady) return;
+  var body=JSON.parse(JSON.stringify(priv));
+  enqueue('priv/main',function(){
+    var p=store.sb ? sbc.from('admin_data').upsert({id:'main',data:body,updated_at:new Date().toISOString(),updated_by:store.uid||null}).then(function(r){ if(r.error) throw r.error; })
+                   : Promise.resolve(store.db.doc('priv/main').set(body));
+    return p.catch(function(){ toast("L'enregistrement a échoué. Réessayez dans un instant."); });
+  });
+}
+var PRIV_SQL="Dans Supabase, ouvrez SQL Editor et lancez la commande du fichier HCA-prive-depenses-paie.txt. Elle crée un espace réservé à votre seul courriel. Ensuite, rafraîchissez cette page.";
+function renderPriv(){
+  var ok=privReady&&!privErr;
+  ['dp','pp'].forEach(function(k){
+    $('#'+k+'Setup').hidden=!privErr;
+    $('#'+k+'SetupTxt').textContent=privErr==='setup'?PRIV_SQL:"Impossible de charger cette page pour le moment. Rafraîchissez dans un instant.";
+  });
+  ['#dpMain','#dpList','#ppMain','#ppPay'].forEach(function(s){ $(s).hidden=!ok; });
+  if(!ok) return;
+  if(cur.view==='depenses') renderDep(); else if(cur.view==='paie') renderPaie();
+}
+function schoolMonths(extra){
+  var y0=parseInt(String(cfg.year).slice(0,4),10)||new Date().getFullYear(), out=[];
+  for(var i=0;i<12;i++){ var m=(7+i)%12, yy=y0+Math.floor((7+i)/12); out.push(yy+'-'+('0'+(m+1)).slice(-2)); }
+  (extra||[]).forEach(function(m){ if(m&&out.indexOf(m)<0) out.push(m); });
+  out.sort(); return out;
+}
+function fillMonths(sel,withAll,extra){
+  var keep=sel.value, now=todayIso().slice(0,7), ms=schoolMonths(extra.concat([now]));
+  var h=withAll?'<option value="">Toute la période</option>':'';
+  ms.forEach(function(m){ h+='<option value="'+m+'">'+esc(monthLabel(m+'-01'))+'</option>'; });
+  if(sel._h!==h){ sel._h=h; sel.innerHTML=h; }
+  sel.value=(keep!==''&&ms.indexOf(keep)>=0)?keep:(withAll?(keep===''&&sel._init?'':now):now); sel._init=true;
+}
+function sumA(a){ return Math.round(a.reduce(function(t,x){return t+x.a;},0)*100)/100; }
+/* ----- Dépenses ----- */
+function depView(){ var m=$('#dpMon').value; return priv.exp.filter(function(x){ return !m||x.d.slice(0,7)===m; }).sort(function(a,b){ return b.d.localeCompare(a.d); }); }
+function renderDep(){
+  var cs=$('#dpCat'); if(!cs.options.length){ cs.innerHTML=EXP_CATS.map(function(c){return '<option>'+esc(c)+'</option>';}).join(''); }
+  if(!$('#dpDate').value) $('#dpDate').value=todayIso();
+  fillMonths($('#dpMon'),true,priv.exp.map(function(x){return x.d.slice(0,7);}));
+  var list=depView(), tot=sumA(list), all=sumA(priv.exp);
+  $('#dpTot').innerHTML='<div><b>'+fmt(tot)+'</b><span>Total de la période</span></div><div><b>'+list.length+'</b><span>Dépenses</span></div><div><b>'+fmt(all)+'</b><span>Total depuis le début</span></div>';
+  var by={}; list.forEach(function(x){ (by[x.cat]=by[x.cat]||[]).push(x); });
+  setH($('#dpCatRows'),Object.keys(by).sort().map(function(c){ return '<tr><td class="tl">'+esc(c)+'</td><td class="n">'+by[c].length+'</td><td class="n">'+fmt(sumA(by[c]))+'</td></tr>'; }).join('')||'<tr><td class="tl hint" colspan="3">Aucune dépense pour cette période.</td></tr>');
+  setH($('#dpRows'),list.map(function(x){
+    return '<tr><td class="tl">'+esc(shortDate(x.d))+'</td><td class="tl">'+esc(x.cat)+'</td><td class="tl">'+esc(x.desc||'-')+'</td><td class="n">'+fmt(x.a)+'</td><td>'+(pvc===x.id?'<button type="button" class="rm" data-dp="yes" data-id="'+esc(x.id)+'">Oui</button> <button type="button" class="ghost sm" data-dp="no">Non</button>':'<button type="button" class="ghost sm" data-dp="del" data-id="'+esc(x.id)+'">Retirer</button>')+'</td></tr>';
+  }).join(''));
+}
+$('#dpMon').addEventListener('change',renderDep);
+$('#dpForm').addEventListener('submit',function(e){
+  e.preventDefault(); if(!canPriv()||!privReady) return;
+  var a=money($('#dpAmt').value); if(a<=0){ toast('Entrez un montant supérieur à 0.'); return; }
+  priv.exp.push({id:uid(),d:$('#dpDate').value||todayIso(),cat:$('#dpCat').value||'Autres',desc:$('#dpDesc').value.trim().replace(/\s+/g,' ').slice(0,120),a:a});
+  $('#dpAmt').value=''; $('#dpDesc').value=''; privSave(); renderDep(); toast('Dépense enregistrée.');
+});
+$('#dpRows').addEventListener('click',function(e){
+  var b=e.target.closest('button[data-dp]'); if(!b||!canPriv()) return;
+  if(b.dataset.dp==='del') pvc=b.dataset.id;
+  else if(b.dataset.dp==='no') pvc=null;
+  else if(b.dataset.dp==='yes'){ priv.exp=priv.exp.filter(function(x){return x.id!==b.dataset.id;}); pvc=null; privSave(); toast('Dépense retirée.'); }
+  renderDep();
+});
+function perLabel(m){ return m?monthLabel(m+'-01'):'Toute la période'; }
+$('#dpCsv').addEventListener('click',function(){
+  var rows=[['Date','Catégorie','Description','Monnaie','Montant']];
+  depView().slice().reverse().forEach(function(x){ rows.push([x.d,x.cat,x.desc,curLbl(),x.a]); });
+  saveFile('depenses-'+($('#dpMon').value||cfg.year)+'.csv',csvText(rows),'text/csv');
+});
+$('#dpPdf').addEventListener('click',function(){
+  var list=depView().slice().reverse(), m=$('#dpMon').value;
+  var o=newPdf('Rapport des dépenses',perLabel(m)); if(!o){ pdfNoLib(); return; }
+  var d=o.doc, M=o.M, CW=o.PW-2*M, c1=70, c2=130, c4=110, c3=CW-c1-c2-c4;
+  function head(){ d.setFillColor(23,64,139); d.rect(M,o.y,CW,22,'F'); d.setFont('helvetica','bold'); d.setFontSize(10); d.setTextColor(255,255,255);
+    d.text('Date',M+8,o.y+15); d.text('Catégorie',M+c1+8,o.y+15); d.text('Description',M+c1+c2+8,o.y+15); d.text('Montant',M+CW-8,o.y+15,{align:'right'}); o.y+=22; }
+  head();
+  list.forEach(function(x){ if(pdfNeed(o,22)) head();
+    d.setFont('helvetica','normal'); d.setFontSize(9.5); d.setTextColor(17,27,46);
+    d.text(pdfTxt(shortDate(x.d)),M+8,o.y+15); d.text(d.splitTextToSize(pdfTxt(x.cat),c2-12)[0],M+c1+8,o.y+15); d.text(d.splitTextToSize(pdfTxt(x.desc||'-'),c3-12)[0],M+c1+c2+8,o.y+15);
+    d.setFont('helvetica','bold'); d.text(pdfMoney(x.a),M+CW-8,o.y+15,{align:'right'}); d.setDrawColor(226,231,240); d.line(M,o.y+22,M+CW,o.y+22); o.y+=22; });
+  pdfNeed(o,40); o.y+=8; d.setFont('helvetica','bold'); d.setFontSize(12); d.setTextColor(17,27,46); d.text('TOTAL',M+8,o.y+14); d.text(pdfMoney(sumA(list)),M+CW-8,o.y+14,{align:'right'}); o.y+=30;
+  var by={}; list.forEach(function(x){ by[x.cat]=(by[x.cat]||0)+x.a; });
+  pdfNeed(o,40); d.setFont('helvetica','bold'); d.setFontSize(9); d.setTextColor(75,88,114); d.text('PAR CATÉGORIE',M,o.y+8); o.y+=14; d.setDrawColor(211,218,230); d.line(M,o.y,M+CW,o.y); o.y+=6;
+  Object.keys(by).sort().forEach(function(c){ pdfNeed(o,20); d.setFont('helvetica','normal'); d.setFontSize(10); d.setTextColor(75,88,114); d.text(pdfTxt(c),M,o.y+10); d.setFont('helvetica','bold'); d.setTextColor(17,27,46); d.text(pdfMoney(by[c]),M+CW,o.y+10,{align:'right'}); o.y+=18; });
+  pdfSign(o); pdfDone(o,'depenses-'+(m||cfg.year)+'.pdf','Dépenses');
+});
+/* ----- Paie ----- */
+function staffOf(id){ return priv.staff.filter(function(s){return s.id===id;})[0]; }
+function paidFor(sid,m){ return sumA(priv.pay.filter(function(p){return p.sid===sid&&p.m===m;})); }
+function payRows(m){
+  return priv.staff.filter(function(s){ return !s.off || paidFor(s.id,m)>0; }).map(function(s){
+    var due=s.off?0:s.pay, paid=paidFor(s.id,m); return {s:s,due:due,paid:paid,bal:Math.round((due-paid)*100)/100};
+  });
+}
+function renderPaie(){
+  fillMonths($('#ppMon'),false,priv.pay.map(function(x){return x.m;}));
+  var m=$('#ppMon').value;
+  if(!$('#ppDate').value) $('#ppDate').value=todayIso();
+  var dis=!canPriv()?' disabled':'';
+  setH($('#stList'),priv.staff.length?priv.staff.map(function(s){
+    return '<div class="rcard" data-st="'+esc(s.id)+'"><div class="rgrid">'
+      +'<label class="lbl">Nom<input type="text" maxlength="60" data-sf="name" value="'+esc(s.name)+'"></label>'
+      +'<label class="lbl">Poste<input type="text" maxlength="60" data-sf="role" value="'+esc(s.role)+'"></label>'
+      +'<label class="lbl">Salaire mensuel<input type="number" inputmode="decimal" min="0" step="0.01" data-sf="pay" value="'+s.pay+'"></label></div>'
+      +'<label class="lbl" style="flex-direction:row;align-items:center;gap:10px"><input type="checkbox" data-sf="off" style="width:22px;height:22px;flex:none"'+(s.off?' checked':'')+'> N\'est plus employé(e)</label></div>';
+  }).join(''):'<p class="hint">Aucun employé pour le moment. Ajoutez le premier ci-dessous.</p>');
+  var act=priv.staff.filter(function(s){return !s.off;});
+  var ws=$('#ppWho'), wh=act.map(function(s){return '<option value="'+esc(s.id)+'">'+esc(s.name)+'</option>';}).join('');
+  if(ws._h!==wh){ var kv=ws.value; ws._h=wh; ws.innerHTML=wh; if(kv) ws.value=kv; }
+  var rows=payRows(m), due=0, paid=0; rows.forEach(function(r){ due+=r.due; paid+=r.paid; }); due=Math.round(due*100)/100; paid=Math.round(paid*100)/100;
+  var bal=Math.round((due-paid)*100)/100;
+  $('#ppTot').innerHTML='<div><b>'+fmt(due)+'</b><span>Salaires du mois</span></div><div><b>'+fmt(paid)+'</b><span>Total payé</span></div><div class="bal '+(bal>0?'due':'ok')+'"><b>'+fmt(bal)+'</b><span>Balance restante</span></div>';
+  setH($('#ppRows'),rows.map(function(r){
+    return '<tr><td class="tl">'+esc(r.s.name)+(r.s.role?'<br><span class="hint">'+esc(r.s.role)+'</span>':'')+'</td><td class="n">'+fmt(r.due)+'</td><td class="n">'+fmt(r.paid)+'</td><td class="n">'+balHtml(r.bal)+'</td><td>'+(r.bal>0?'<button type="button" class="btn sm" data-pp="full" data-id="'+esc(r.s.id)+'">Payer le solde</button> ':'')+'<button type="button" class="ghost sm" data-pp="slip" data-id="'+esc(r.s.id)+'">Fiche de paie (PDF)</button></td></tr>';
+  }).join('')||'<tr><td class="tl hint" colspan="5">Aucun employé.</td></tr>');
+  var hist=priv.pay.filter(function(p){return p.m===m;}).sort(function(a,b){return b.d.localeCompare(a.d);});
+  setH($('#ppHist'),hist.map(function(p){ var s=staffOf(p.sid);
+    return '<tr><td class="tl">'+esc(shortDate(p.d))+(p.n?'<br><span class="hint">'+esc(p.n)+'</span>':'')+'</td><td class="tl">'+esc(s?s.name:'-')+'</td><td class="n">'+fmt(p.a)+'</td><td>'+(pvc===p.id?'<button type="button" class="rm" data-pp="yes" data-id="'+esc(p.id)+'">Oui</button> <button type="button" class="ghost sm" data-pp="no">Non</button>':'<button type="button" class="ghost sm" data-pp="del" data-id="'+esc(p.id)+'">Retirer</button>')+'</td></tr>';
+  }).join('')||'<tr><td class="tl hint" colspan="4">Aucun paiement ce mois-ci.</td></tr>');
+}
+$('#ppMon').addEventListener('change',renderPaie);
+$('#stForm').addEventListener('submit',function(e){
+  e.preventDefault(); if(!canPriv()||!privReady) return;
+  var n=$('#stName').value.trim().replace(/\s+/g,' ').slice(0,60); if(!n){ toast("Entrez le nom de l'employé(e)."); return; }
+  priv.staff.push({id:uid(),name:n,role:$('#stRole').value.trim().slice(0,60),pay:money($('#stPay').value),off:false});
+  $('#stName').value=''; $('#stRole').value=''; $('#stPay').value=''; privSave(); renderPaie(); toast('Employé(e) ajouté(e).');
+});
+$('#stList').addEventListener('change',function(e){
+  var f=e.target.dataset.sf, card=e.target.closest('[data-st]'); if(!f||!card||!canPriv()) return;
+  var s=staffOf(card.dataset.st); if(!s) return;
+  if(f==='off') s.off=e.target.checked; else if(f==='pay') s.pay=money(e.target.value);
+  else { var v=e.target.value.trim().replace(/\s+/g,' ').slice(0,60); if(f==='name'&&!v){ e.target.value=s.name; return; } s[f]=v; }
+  privSave(); renderPaie();
+});
+$('#ppForm').addEventListener('submit',function(e){
+  e.preventDefault(); if(!canPriv()||!privReady) return;
+  var sid=$('#ppWho').value, a=money($('#ppAmt').value); if(!sid){ toast("Choisissez un(e) employé(e)."); return; } if(a<=0){ toast('Entrez un montant supérieur à 0.'); return; }
+  var d=$('#ppDate').value||todayIso();
+  priv.pay.push({id:uid(),sid:sid,m:$('#ppMon').value,d:d,a:a,n:$('#ppNote').value.trim().replace(/\s+/g,' ').slice(0,80)});
+  $('#ppAmt').value=''; $('#ppNote').value=''; privSave(); renderPaie(); toast('Paiement enregistré.');
+});
+function slipPdf(s,m){
+  var o=newPdf('Fiche de paie',monthLabel(m+'-01')); if(!o){ pdfNoLib(); return; }
+  var d=o.doc, M=o.M, CW=o.PW-2*M, pays=priv.pay.filter(function(p){return p.sid===s.id&&p.m===m;}).sort(function(a,b){return a.d.localeCompare(b.d);});
+  d.setFont('helvetica','normal'); d.setFontSize(10); d.setTextColor(110,120,140); d.text('Employé(e)',M,o.y+10);
+  d.setFont('helvetica','bold'); d.setFontSize(14); d.setTextColor(17,27,46); d.text(d.splitTextToSize(pdfTxt(s.name),CW-40)[0],M,o.y+28); o.y+=38;
+  if(s.role){ d.setFont('helvetica','normal'); d.setFontSize(10.5); d.setTextColor(75,88,114); d.text(pdfTxt(s.role),M,o.y+10); o.y+=20; }
+  o.y+=6; d.setFillColor(23,64,139); d.rect(M,o.y,CW,22,'F'); d.setFont('helvetica','bold'); d.setFontSize(10); d.setTextColor(255,255,255);
+  d.text('Date du paiement',M+8,o.y+15); d.text('Note',M+170,o.y+15); d.text('Montant payé',M+CW-8,o.y+15,{align:'right'}); o.y+=22;
+  if(!pays.length){ d.setFont('helvetica','normal'); d.setFontSize(10.5); d.setTextColor(110,120,140); d.text(pdfTxt('Aucun paiement ce mois-ci.'),M+8,o.y+16); o.y+=26; }
+  pays.forEach(function(p){ pdfNeed(o,24); d.setFont('helvetica','normal'); d.setFontSize(10.5); d.setTextColor(17,27,46);
+    d.text(pdfTxt(shortDate(p.d)),M+8,o.y+15); d.text(d.splitTextToSize(pdfTxt(p.n||''),CW-170-150)[0]||'',M+170,o.y+15);
+    d.setFont('helvetica','bold'); d.text(pdfMoney(p.a),M+CW-8,o.y+15,{align:'right'}); d.setDrawColor(226,231,240); d.line(M,o.y+22,M+CW,o.y+22); o.y+=22; });
+  o.y+=12; pdfNeed(o,90);
+  var due=s.off?0:s.pay, paid=sumA(pays), bal=Math.round((due-paid)*100)/100;
+  function row(l,v,bold,col){ d.setFont('helvetica',bold?'bold':'normal'); d.setFontSize(11); d.setTextColor(75,88,114); d.text(pdfTxt(l),M+CW-250,o.y+10); d.setTextColor(col[0],col[1],col[2]); d.text(pdfTxt(v),M+CW-8,o.y+10,{align:'right'}); o.y+=20; }
+  row('Salaire du mois',pdfMoney(due),false,[17,27,46]); row('Total payé',pdfMoney(paid),true,[17,27,46]); row('Balance restante',pdfMoney(bal),true,bal>0?[179,38,30]:[23,114,74]);
+  pdfNeed(o,80); o.y+=30; d.setDrawColor(120,130,150); d.line(M,o.y,M+210,o.y); d.line(o.PW-M-210,o.y,o.PW-M,o.y); o.y+=13; d.setFont('helvetica','normal'); d.setFontSize(9); d.setTextColor(75,88,114);
+  d.text(pdfTxt("Signature de l'employé(e)"),M,o.y); d.text(pdfTxt('Signature de la direction'),o.PW-M-210,o.y);
+  pdfDone(o,'fiche-de-paie-'+slug(s.name)+'-'+m+'.pdf','Fiche de paie - '+s.name);
+}
+$('#ppRows').addEventListener('click',function(e){
+  var b=e.target.closest('button[data-pp]'); if(!b||!canPriv()) return; var s=staffOf(b.dataset.id), m=$('#ppMon').value; if(!s) return;
+  if(b.dataset.pp==='slip'){ slipPdf(s,m); return; }
+  if(b.dataset.pp==='full'){ var bal=Math.round((s.pay-paidFor(s.id,m))*100)/100; if(bal>0){ priv.pay.push({id:uid(),sid:s.id,m:m,d:todayIso(),a:bal,n:'Salaire du mois'}); privSave(); renderPaie(); toast('Paiement enregistré.'); } }
+});
+$('#ppHist').addEventListener('click',function(e){
+  var b=e.target.closest('button[data-pp]'); if(!b||!canPriv()) return;
+  if(b.dataset.pp==='del') pvc=b.dataset.id; else if(b.dataset.pp==='no') pvc=null;
+  else if(b.dataset.pp==='yes'){ priv.pay=priv.pay.filter(function(x){return x.id!==b.dataset.id;}); pvc=null; privSave(); toast('Paiement retiré.'); }
+  renderPaie();
+});
+$('#ppCsv').addEventListener('click',function(){
+  var m=$('#ppMon').value, rows=[['Mois','Employé(e)','Poste','Monnaie','Salaire','Payé','Balance restante','Détail des paiements']];
+  payRows(m).forEach(function(r){ rows.push([m,r.s.name,r.s.role,curLbl(),r.due,r.paid,r.bal,priv.pay.filter(function(p){return p.sid===r.s.id&&p.m===m;}).map(function(p){return p.d+' : '+p.a+(p.n?' ('+p.n+')':'');}).join(' | ')]); });
+  saveFile('paie-'+m+'.csv',csvText(rows),'text/csv');
+});
+$('#ppPdf').addEventListener('click',function(){
+  var m=$('#ppMon').value, rows=payRows(m);
+  var o=newPdf('Rapport de paie',monthLabel(m+'-01')); if(!o){ pdfNoLib(); return; }
+  var d=o.doc, M=o.M, CW=o.PW-2*M, cw=[CW-3*100,100,100,100], X=[M,0,0,0]; var xr=[M+cw[0]+cw[1]-8,M+cw[0]+cw[1]+cw[2]-8,M+CW-8];
+  function head(){ d.setFillColor(23,64,139); d.rect(M,o.y,CW,22,'F'); d.setFont('helvetica','bold'); d.setFontSize(10); d.setTextColor(255,255,255);
+    d.text('Employé(e)',M+8,o.y+15); d.text('Salaire',xr[0],o.y+15,{align:'right'}); d.text('Payé',xr[1],o.y+15,{align:'right'}); d.text('Balance',xr[2],o.y+15,{align:'right'}); o.y+=22; }
+  head(); var TD=0,TP=0;
+  rows.forEach(function(r){ if(pdfNeed(o,26)) head(); TD+=r.due; TP+=r.paid;
+    d.setFont('helvetica','normal'); d.setFontSize(10); d.setTextColor(17,27,46); d.text(d.splitTextToSize(pdfTxt(r.s.name+(r.s.role?' - '+r.s.role:'')),cw[0]-12)[0],M+8,o.y+15);
+    d.text(pdfMoney(r.due),xr[0],o.y+15,{align:'right'}); d.text(pdfMoney(r.paid),xr[1],o.y+15,{align:'right'});
+    d.setFont('helvetica','bold'); d.text(pdfMoney(r.bal),xr[2],o.y+15,{align:'right'}); d.setDrawColor(226,231,240); d.line(M,o.y+22,M+CW,o.y+22); o.y+=22; });
+  pdfNeed(o,40); o.y+=6; d.setFont('helvetica','bold'); d.setFontSize(11); d.setTextColor(17,27,46); d.text('TOTAL',M+8,o.y+14);
+  d.text(pdfMoney(TD),xr[0],o.y+14,{align:'right'}); d.text(pdfMoney(TP),xr[1],o.y+14,{align:'right'}); d.text(pdfMoney(Math.round((TD-TP)*100)/100),xr[2],o.y+14,{align:'right'}); o.y+=30;
+  pdfSign(o); pdfDone(o,'rapport-paie-'+m+'.pdf','Rapport de paie');
+});
+
 var ROLES=[['admin','Administrateur'],['saisie','Saisie des présences'],['lecture','Lecture seule']];
 function sbErr(e){
   if(!e) return e; var code=String(e.code||'');
@@ -1777,6 +2088,7 @@ $('#newYearYes').addEventListener('click',function(){
 $('#bkSave').addEventListener('click',function(){
   allDays().then(function(d){
     var obj={app:'registre-presence',version:1,savedAt:new Date().toISOString(),cfg:cfgBody(),days:d};
+    if(canPriv()&&privReady) obj.priv=priv;
     saveFile('sauvegarde-registre-'+cfg.year+'-'+stamp()+'.json',JSON.stringify(obj),'application/json');
   });
 });
@@ -1834,6 +2146,7 @@ $('#bkYes').addEventListener('click',function(){
       enqueue('days/'+date,function(){ return store.db.doc('days/'+date).set(body).catch(failWrite); });
     });
   } else saveLocal();
+  if(o.priv&&canPriv()&&privReady){ priv=cleanPriv(o.priv); privSave(); }
   pendingBk=null; $('#bkConfirm').hidden=true; renderAll(); renderDonnees(); toast('Données restaurées.');
 });
 
