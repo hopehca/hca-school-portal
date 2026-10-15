@@ -606,7 +606,7 @@ section[id^="v-"] h2{color:var(--accent)}
     </div>
   </section>
 </div>
-<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V69 · 15/10/2026 · dépenses : description facultative</p>
+<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V70 · 15/10/2026 · dépenses : rapport PDF plus clair</p>
 <div id="toast" class="toast" role="status" hidden></div>
 <div id="printReport" aria-hidden="true"></div>
 
@@ -2027,7 +2027,7 @@ $('#dpPdf').addEventListener('click',function(){
     if(pdfNeed(o,22)) head2();
     d.setFont('helvetica','bold'); d.setFontSize(10); d.setTextColor(17,27,46); d.text(d.splitTextToSize(pdfTxt(g.cat),CW-250)[0],M+8,o.y+15); d.text(pdfMoney(g.a),CW+M-c4-70,o.y+15,{align:'right'}); d.text(pdfTxt(pctTxt(g.p)),M+CW-8,o.y+15,{align:'right'});
     d.setFillColor(225,233,248); d.rect(M+8,o.y+18,CW-16,3,'F'); d.setFillColor(23,64,139); d.rect(M+8,o.y+18,(CW-16)*Math.min(100,g.p)/100,3,'F'); o.y+=24;
-    g.sl.forEach(function(u){ if(pdfNeed(o,18)) head2(); d.setFont('helvetica','normal'); d.setFontSize(9); d.setTextColor(75,88,114);
+    g.sl.forEach(function(u){ if(!u.sub&&g.sl.length===1) return; if(pdfNeed(o,18)) head2(); d.setFont('helvetica','normal'); d.setFontSize(9); d.setTextColor(75,88,114);
       d.text(d.splitTextToSize(pdfTxt('   '+(u.sub||'(Sans sous-catégorie)')+' - '+pctTxt(u.pc)+' de la catégorie'),CW-250)[0],M+8,o.y+12); d.text(pdfMoney(u.a),CW+M-c4-70,o.y+12,{align:'right'}); d.text(pdfTxt(pctTxt(u.pt)),M+CW-8,o.y+12,{align:'right'}); o.y+=16; });
     line(); 
   });
@@ -2035,7 +2035,7 @@ $('#dpPdf').addEventListener('click',function(){
   /* 2. détail par catégorie */
   pdfNeed(o,50); d.setFont('helvetica','bold'); d.setFontSize(11); d.setTextColor(17,27,46); d.text(pdfTxt('Détail par catégorie'),M,o.y+10); o.y+=20;
   depGroups(list).forEach(function(g){
-    if(pdfNeed(o,50)){} 
+    pdfNeed(o,64);
     d.setFillColor(225,233,248); d.rect(M,o.y,CW,22,'F'); d.setFont('helvetica','bold'); d.setFontSize(10.5); d.setTextColor(17,27,46);
     d.text(d.splitTextToSize(pdfTxt(g.cat),CW-210)[0],M+8,o.y+15); d.text(pdfMoney(g.a),M+CW-70,o.y+15,{align:'right'}); d.text(pdfTxt(pctTxt(g.p)),M+CW-8,o.y+15,{align:'right'}); o.y+=22;
     g.sl.forEach(function(u){
