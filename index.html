@@ -606,7 +606,7 @@ section[id^="v-"] h2{color:var(--accent)}
     </div>
   </section>
 </div>
-<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V68 · 15/10/2026 · carte des professeurs : logo abaissé, nom de l'école plus grand</p>
+<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V69 · 15/10/2026 · dépenses : description facultative</p>
 <div id="toast" class="toast" role="status" hidden></div>
 <div id="printReport" aria-hidden="true"></div>
 
@@ -1976,10 +1976,11 @@ $('#dpCat').addEventListener('change',function(){ $('#dpSub').value=''; renderDe
 $('#dpSub').addEventListener('change',function(){ renderDep(); if(this.value==='__new') $('#dpNewSub').focus(); });
 $('#dpForm').addEventListener('submit',function(e){
   e.preventDefault(); if(!canPriv()||!privReady) return;
-  var desc=$('#dpDesc').value.trim().replace(/\s+/g,' ').slice(0,120); if(!desc){ toast("Écrivez la description de l'article."); return; }
+  var desc=$('#dpDesc').value.trim().replace(/\s+/g,' ').slice(0,120);
   var a=money($('#dpAmt').value); if(a<=0){ toast('Entrez un montant supérieur à 0.'); return; }
   var d=$('#dpDate').value; if(!/^\d{4}-\d{2}-\d{2}$/.test(d)){ toast("Choisissez la date d'achat."); return; }
   var cat=$('#dpCat').value||'Autres', sub=$('#dpSub').value||'';
+  if(!desc){ desc=(sub&&sub!=='__new'?sub:(cat==='__new'?$('#dpNewCat').value.trim():cat))||'Dépense'; }
   if(cat==='__new'){
     cat=$('#dpNewCat').value.replace(/\s+/g,' ').trim().slice(0,40); if(!cat){ toast('Écrivez le nom de la nouvelle catégorie.'); return; }
     var ex=depCats().filter(function(c){ return c.toLowerCase()===cat.toLowerCase(); })[0];
