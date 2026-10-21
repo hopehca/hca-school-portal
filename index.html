@@ -1607,7 +1607,7 @@ function frNum(n){
   return parts.join(' ').replace(/\s+/g,' ').trim();
 }
 function rcWords(a){
-  var w=Math.floor(a+1e-9), c=Math.round((a-w)*100), cu=cfg.fin.cur, one=cu==='USD'?'dollar américain':(cu==='HTD'?'dollar haïtien':'gourde'), many=one+'s';
+  var w=Math.floor(a+1e-9), c=Math.round((a-w)*100), cu=cfg.fin.cur, one=cu==='USD'?'dollar américain':(cu==='HTD'?'dollar haïtien':'gourde'), many=cu==='USD'?'dollars américains':(cu==='HTD'?'dollars haïtiens':'gourdes');
   var o=frNum(w)+' '+(w>1?many:one); if(c>0) o+=' et '+frNum(c)+' centime'+(c>1?'s':'');
   return o;
 }
