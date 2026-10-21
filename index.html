@@ -641,7 +641,7 @@ section[id^="v-"] h2{color:var(--accent)}
     </div>
   </section>
 </div>
-<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V74 · 20/10/2026 · reçus de paie, mot de passe oublié et afficher le mot de passe</p>
+<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V74 · 20/10/2026 · reçus en Dollars haïtiens, reçus de paie, mot de passe oublié</p>
 <div id="toast" class="toast" role="status" hidden></div>
 <div id="printReport" aria-hidden="true"></div>
 
@@ -1611,7 +1611,7 @@ function rcWords(a){
   var o=frNum(w)+' '+(w>1?many:one); if(c>0) o+=' et '+frNum(c)+' centime'+(c>1?'s':'');
   return o;
 }
-function rcCode(){ return cfg.fin.cur==='USD'?'USD':(cfg.fin.cur==='HTD'?'HTD':'HTG'); }
+function rcCode(){ return cfg.fin.cur==='USD'?'USD':(cfg.fin.cur==='HTD'?'Dollars haïtiens':'HTG'); }
 function rcSorted(s){ return ((s.f&&s.f.pay)||[]).map(function(x,i){ return {x:x,i:i}; }).sort(function(a,b){ return (a.x.d||'').localeCompare(b.x.d||'')||a.i-b.i; }).map(function(o){ return o.x; }); }
 function rcAlloc(s,pay){
   var dI=inscOf(s), dP=partOf(s), pI=0, pP=0, before=0, got={insc:0,part:0}, list=rcSorted(s);
@@ -1674,7 +1674,7 @@ function rcPdfBytes(items,blank){
         function box(x,col,lab,val,sub){
           pg.drawRectangle({x:x,y:H-by-78,width:256,height:78,borderColor:col,borderWidth:1.8});
           T(lab.toUpperCase(),x+12,by+9,7.5,fr,gray);
-          if(val==null) T(cc,x+244,by+40,10,fb,ink,'r'); else T(val+' '+cc,x+244,by+30,17,fb,ink,'r');
+          if(val==null) T(cc,x+244,by+40,10,fb,ink,'r'); else { var vt=val+' '+cc; T(vt,x+244,by+30,fit(vt,232,17,fb),fb,ink,'r'); }
           pg.drawLine({start:{x:x+12,y:H-by-52},end:{x:x+244,y:H-by-52},thickness:.9,color:ink,dashArray:[1.5,2.5]});
           var sz=fit(sub,232,8,fi); T(sub,x+12,by+60,sz,fi,gray);
         }
