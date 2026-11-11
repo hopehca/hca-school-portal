@@ -688,7 +688,7 @@ section[id^="v-"] h2{color:var(--accent)}
     </div>
   </section>
 </div>
-<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V76 · 29/10/2026 · section privée de la paie, résumé envoyé / utilisé / reste, employés repliables</p>
+<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V77 · 31/10/2026 · paie : bouton Modifier sur les paiements enregistrés</p>
 <div id="toast" class="toast" role="status" hidden></div>
 <div id="printReport" aria-hidden="true"></div>
 
@@ -2408,7 +2408,7 @@ function staffOf(id){ return priv.staff.filter(function(s){return s.id===id;})[0
 function isHidPay(p){ var s=staffOf(p.sid); return !!(s&&s.hid); }
 function usedIn(m){ return sumA(priv.pay.filter(function(p){return p.m===m;})); }
 function sentIn(m){ return sumA(priv.fund.filter(function(f){return f.m===m;})); }
-var stOpen={};
+var stOpen={}, pve=null;
 function staffCards(list,empty){
   return list.length?list.map(function(s){
     return '<details class="rcard" data-st="'+esc(s.id)+'"'+(stOpen[s.id]?' open':'')+'><summary><b>'+esc(s.name)+'</b>'+(s.role?' <span class="hint">· '+esc(s.role)+'</span>':'')+(s.off?' <span class="hint">(ancien)</span>':'')+'</summary><div class="rbody"><div class="rgrid">'
@@ -2444,9 +2444,7 @@ function renderPaieMain(){
     return '<tr><td class="tl">'+esc(r.s.name)+(r.s.role?'<br><span class="hint">'+esc(r.s.role)+'</span>':'')+'</td><td class="n">'+fmt(r.due)+'</td><td class="n">'+fmt(r.paid)+'</td><td class="n">'+balHtml(r.bal)+'</td><td>'+(r.bal>0?'<button type="button" class="btn sm" data-pp="full" data-id="'+esc(r.s.id)+'">Payer le solde</button> ':'')+'<button type="button" class="ghost sm" data-pp="slip" data-id="'+esc(r.s.id)+'">Fiche de paie (PDF)</button></td></tr>';
   }).join('')+(rows.filter(function(r){ return !view||r.s.id===view; }).length?'<tr class="mhead"><th scope="row" class="tl">Total du mois</th><th class="n">'+fmt(due)+'</th><th class="n">'+fmt(paid)+'</th><th class="n">'+fmt(bal)+'</th><th></th></tr>':'<tr><td class="tl hint" colspan="5">Aucun employé.</td></tr>'));
   var hist=priv.pay.filter(function(p){return p.m===m&&!isHidPay(p)&&(!view||p.sid===view);}).sort(function(a,b){return a.d.localeCompare(b.d);}), run=0;
-  setH($('#ppHist'),hist.map(function(p){ var s=staffOf(p.sid); run=Math.round((run+p.a)*100)/100;
-    return '<tr><td class="tl">'+esc(shortDate(p.d))+'<br><span class="hint">'+esc(p.no||'')+(p.n?' · '+esc(p.n):'')+'</span></td><td class="tl">'+esc(s?s.name:'-')+'</td><td class="n">'+fmt(p.a)+'</td><td class="n">'+fmt(run)+'</td><td>'+(pvc===p.id?'<button type="button" class="rm" data-pp="yes" data-id="'+esc(p.id)+'">Oui</button> <button type="button" class="ghost sm" data-pp="no">Non</button>':'<button type="button" class="btn sm" data-pp="rcp" data-id="'+esc(p.id)+'">Reçu (PDF)</button> <button type="button" class="ghost sm" data-pp="snd" data-id="'+esc(p.id)+'">Envoyer'+(p.snt?' ✓':'')+'</button> <button type="button" class="ghost sm" data-pp="del" data-id="'+esc(p.id)+'">Retirer</button>')+'</td></tr>';
-  }).join('')+(hist.length?'<tr class="mhead"><th scope="row" class="tl" colspan="2">Total payé - '+esc(monthLabel(m+'-01'))+'</th><th class="n">'+fmt(run)+'</th><th></th><th></th></tr>':'<tr><td class="tl hint" colspan="5">Aucun paiement ce mois-ci.</td></tr>'));
+  setH($('#ppHist'),hist.map(function(p){ run=Math.round((run+p.a)*100)/100; return ppHistHtml(p,run); }).join('')+(hist.length?'<tr class="mhead"><th scope="row" class="tl" colspan="2">Total payé - '+esc(monthLabel(m+'-01'))+'</th><th class="n">'+fmt(run)+'</th><th></th><th></th></tr>':'<tr><td class="tl hint" colspan="5">Aucun paiement ce mois-ci.</td></tr>'));
   var yb=$('#ppYrBox'); yb.hidden=!view;
   if(view){ var sf=staffOf(view), TD=0, TP=0;
     $('#ppYrT').textContent=(sf?sf.name:'')+' - mois par mois';
@@ -2538,6 +2536,15 @@ function ppHistClick(e){
     if(n){ window.open('https://wa.me/'+n+'?text='+encodeURIComponent(msg),'_blank'); ok(); } else toast("Ajoutez le numéro WhatsApp de l'employé(e) pour envoyer le reçu.");
     return;
   }
+  if(b.dataset.pp==='edit'){ pve=b.dataset.id; pvc=null; renderPaie(); return; }
+  if(b.dataset.pp==='ecancel'){ pve=null; renderPaie(); return; }
+  if(b.dataset.pp==='esave'){
+    var rw=b.closest('tr'), pp2=priv.pay.filter(function(x){return x.id===b.dataset.id;})[0]; if(!rw||!pp2) return;
+    var na=money(rw.querySelector('[data-pe="a"]').value), nd=rw.querySelector('[data-pe="d"]').value||pp2.d, nn=rw.querySelector('[data-pe="n"]').value.trim().replace(/\s+/g,' ').slice(0,80);
+    if(na<=0){ toast('Entrez un montant supérieur à 0.'); return; }
+    if(na!==pp2.a) pp2.snt=null;
+    pp2.a=na; pp2.d=nd; pp2.n=nn; pve=null; privSave(); renderPaie(); toast('Paiement modifié.'); return;
+  }
   if(b.dataset.pp==='del') pvc=b.dataset.id; else if(b.dataset.pp==='no') pvc=null;
   else if(b.dataset.pp==='yes'){ priv.pay=priv.pay.filter(function(x){return x.id!==b.dataset.id;}); pvc=null; privSave(); toast('Paiement retiré.'); }
   renderPaie();
@@ -2582,7 +2589,10 @@ function ppRowHtml(r){
 }
 function ppHistHtml(p,run){
   var s=staffOf(p.sid);
-  return '<tr><td class="tl">'+esc(shortDate(p.d))+'<br><span class="hint">'+esc(p.no||'')+(p.n?' · '+esc(p.n):'')+'</span></td><td class="tl">'+esc(s?s.name:'-')+'</td><td class="n">'+fmt(p.a)+'</td><td class="n">'+fmt(run)+'</td><td>'+(pvc===p.id?'<button type="button" class="rm" data-pp="yes" data-id="'+esc(p.id)+'">Oui</button> <button type="button" class="ghost sm" data-pp="no">Non</button>':'<button type="button" class="btn sm" data-pp="rcp" data-id="'+esc(p.id)+'">Reçu (PDF)</button> <button type="button" class="ghost sm" data-pp="snd" data-id="'+esc(p.id)+'">Envoyer'+(p.snt?' ✓':'')+'</button> <button type="button" class="ghost sm" data-pp="del" data-id="'+esc(p.id)+'">Retirer</button>')+'</td></tr>';
+  if(pve===p.id){
+    return '<tr data-pe-row="'+esc(p.id)+'"><td class="tl"><input type="date" data-pe="d" value="'+esc(p.d)+'" style="width:100%"><br><input type="text" data-pe="n" maxlength="80" placeholder="Note" value="'+esc(p.n||'')+'" style="width:100%;margin-top:4px"><br><span class="hint">'+esc(p.no||'')+'</span></td><td class="tl">'+esc(s?s.name:'-')+'</td><td class="n"><input type="number" inputmode="decimal" min="0" step="0.01" data-pe="a" value="'+p.a+'" style="width:100%"></td><td class="n">'+fmt(run)+'</td><td><button type="button" class="btn sm" data-pp="esave" data-id="'+esc(p.id)+'">Enregistrer</button> <button type="button" class="ghost sm" data-pp="ecancel">Annuler</button></td></tr>';
+  }
+  return '<tr><td class="tl">'+esc(shortDate(p.d))+'<br><span class="hint">'+esc(p.no||'')+(p.n?' · '+esc(p.n):'')+'</span></td><td class="tl">'+esc(s?s.name:'-')+'</td><td class="n">'+fmt(p.a)+'</td><td class="n">'+fmt(run)+'</td><td>'+(pvc===p.id?'<button type="button" class="rm" data-pp="yes" data-id="'+esc(p.id)+'">Oui</button> <button type="button" class="ghost sm" data-pp="no">Non</button>':'<button type="button" class="btn sm" data-pp="rcp" data-id="'+esc(p.id)+'">Reçu (PDF)</button> <button type="button" class="ghost sm" data-pp="snd" data-id="'+esc(p.id)+'">Envoyer'+(p.snt?' ✓':'')+'</button> <button type="button" class="ghost sm" data-pp="edit" data-id="'+esc(p.id)+'">Modifier</button> <button type="button" class="ghost sm" data-pp="del" data-id="'+esc(p.id)+'">Retirer</button>')+'</td></tr>';
 }
 /* ----- Section privée : employés cachés ----- */
 function renderHid(){
