@@ -318,6 +318,13 @@ section[id^="v-"] h2{color:var(--accent)}
 .brand{display:flex;align-items:center;gap:12px;min-width:0}
 .hcalogo{width:56px;height:56px;flex:none;border-radius:50%}
 .hcalogo.big{width:72px;height:72px}
+
+.payln{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;padding:7px 0;border-bottom:1px solid rgba(120,130,150,.25);font-size:.92rem}
+.payln .grow{flex:1 1 180px;min-width:0}
+.payent{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:9px 0 4px}
+.payent input,.payln input,.payln select{min-height:40px;padding:6px 8px;border:1px solid rgba(120,130,150,.5);border-radius:8px;font:inherit;max-width:100%;box-sizing:border-box}
+.payent input[type=number]{width:130px}
+tr.subrow>td{padding:0 10px 12px 10px;text-align:left}
 </style>
 
 <div class="app">
@@ -526,12 +533,12 @@ section[id^="v-"] h2{color:var(--accent)}
       </div>
       <div class="dcard" id="ppPay">
         <h2>Paie du mois</h2>
-        <label class="lbl" for="ppMon">Mois<select id="ppMon" class="drow"></select></label>
+        <label class="lbl" for="ppMon">Mois travaillé (la paie est pour ce mois)<select id="ppMon" class="drow"></select></label>
         <label class="lbl" for="ppView">Affichage<select id="ppView" class="drow"></select></label>
         <div class="fsum" id="ppTot"></div>
         <div class="tablewrap"><table><thead><tr><th scope="col" class="tl">Employé(e)</th><th scope="col">Salaire</th><th scope="col">Payé</th><th scope="col">Balance</th><th scope="col"></th></tr></thead><tbody id="ppRows"></tbody></table></div>
-        <h2 style="font-size:1rem">Enregistrer un paiement</h2>
-        <form class="fadd" id="ppForm" autocomplete="off">
+        <h2 style="font-size:1rem;display:none">Enregistrer un paiement</h2>
+        <form class="fadd" id="ppForm" autocomplete="off" style="display:none">
           <label class="lbl full">Employé(e)<select id="ppWho" class="drow"></select></label>
           <label class="lbl full">Mois travaillé (le salaire est pour ce mois)<select id="ppForM" class="drow"></select></label>
           <label class="lbl">Date du paiement<input id="ppDate" type="date"></label>
@@ -539,7 +546,7 @@ section[id^="v-"] h2{color:var(--accent)}
           <label class="lbl full">Note (chèque n°, avance…)<input id="ppNote" type="text" maxlength="80"></label>
           <button type="submit" class="btn full">Ajouter le paiement</button>
         </form>
-        <div class="tablewrap"><table><thead><tr><th scope="col" class="tl">Date</th><th scope="col" class="tl">Employé(e)</th><th scope="col">Montant</th><th scope="col">Cumul</th><th scope="col"></th></tr></thead><tbody id="ppHist"></tbody></table></div>
+        <div class="tablewrap" style="display:none"><table><thead><tr><th scope="col" class="tl">Date</th><th scope="col" class="tl">Employé(e)</th><th scope="col">Montant</th><th scope="col">Cumul</th><th scope="col"></th></tr></thead><tbody id="ppHist"></tbody></table></div>
         <div id="ppYrBox" hidden><h2 style="font-size:1rem" id="ppYrT"></h2><div class="tablewrap"><table><thead><tr><th scope="col" class="tl">Mois</th><th scope="col">Salaire</th><th scope="col">Payé</th><th scope="col">Balance</th></tr></thead><tbody id="ppYr"></tbody></table></div></div>
         <div class="drow"><button type="button" class="btn" id="ppPdf">Rapport de paie (PDF)</button><button type="button" class="ghost" id="ppCsv">Paie en tableau (Excel)</button></div>
       </div>
@@ -691,7 +698,7 @@ section[id^="v-"] h2{color:var(--accent)}
     </div>
   </section>
 </div>
-<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V83 · 11/11/2026 · mois travaillé et date du paiement séparés (comme un chéquier); rapport de paie sur une page</p>
+<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V84 · 11/11/2026 · Paie simplifiée : un nom, ses paiements, Payer (montant + date) ou Modifier</p>
 <div id="toast" class="toast" role="status" hidden></div>
 <div id="printReport" aria-hidden="true"></div>
 
@@ -2444,7 +2451,7 @@ function renderPaieMain(){
   var bal=Math.round((due-paid)*100)/100;
   $('#ppTot').innerHTML='<div><b>'+fmt(due)+'</b><span>Salaires du mois</span></div><div><b>'+fmt(paid)+'</b><span>Total payé</span></div><div class="bal '+(bal>0?'due':'ok')+'"><b>'+fmt(bal)+'</b><span>Balance restante</span></div>';
   setH($('#ppRows'),rows.filter(function(r){ return !view||r.s.id===view; }).map(function(r){
-    return '<tr><td class="tl">'+esc(r.s.name)+(r.s.role?'<br><span class="hint">'+esc(r.s.role)+'</span>':'')+'</td><td class="n">'+fmt(r.due)+'</td><td class="n">'+fmt(r.paid)+'</td><td class="n">'+balHtml(r.bal)+'</td><td>'+(r.bal>0?'<button type="button" class="btn sm" data-pp="full" data-id="'+esc(r.s.id)+'">Payer le solde</button> ':'')+'<button type="button" class="ghost sm" data-pp="slip" data-id="'+esc(r.s.id)+'">Fiche de paie (PDF)</button></td></tr>';
+    return ppBlockHtml(r,m);
   }).join('')+(rows.filter(function(r){ return !view||r.s.id===view; }).length?'<tr class="mhead"><th scope="row" class="tl">Total du mois</th><th class="n">'+fmt(due)+'</th><th class="n">'+fmt(paid)+'</th><th class="n">'+fmt(bal)+'</th><th></th></tr>':'<tr><td class="tl hint" colspan="5">Aucun employé.</td></tr>'));
   var hist=priv.pay.filter(function(p){return p.m===m&&!isHidPay(p)&&(!view||p.sid===view);}).sort(function(a,b){return a.d.localeCompare(b.d);}), run=0;
   setH($('#ppHist'),hist.map(function(p){ run=Math.round((run+p.a)*100)/100; return ppHistHtml(p,run); }).join('')+(hist.length?'<tr class="mhead"><th scope="row" class="tl" colspan="2">Total payé - '+esc(monthLabel(m+'-01'))+'</th><th class="n">'+fmt(run)+'</th><th></th><th></th></tr>':'<tr><td class="tl hint" colspan="5">Aucun paiement ce mois-ci.</td></tr>'));
@@ -2513,10 +2520,16 @@ function slipPdf(s,m){
 }
 function ppRowsClick(e){
   var b=e.target.closest('button[data-pp]'); if(!b||!canPriv()) return; var s=staffOf(b.dataset.id), m=$('#ppMon').value; if(!s) return;
+  if(b.dataset.pp==='pay'){
+    var box=b.closest('.payent'); if(!box||!privReady) return;
+    var pa=money(box.querySelector('[data-ne="a"]').value), pd=box.querySelector('[data-ne="d"]').value||todayIso();
+    if(pa<=0){ toast('Entrez un montant supérieur à 0.'); return; }
+    priv.pay.push({id:uid(),sid:s.id,m:m,d:pd,a:pa,n:'',no:nextPayNo(pd)}); privSave(); renderPaie(); toast('Paiement enregistré.'); return;
+  }
   if(b.dataset.pp==='slip'){ slipPdf(s,m); return; }
   if(b.dataset.pp==='full'){ var bal=Math.round((s.pay-paidFor(s.id,m))*100)/100; if(bal>0){ priv.pay.push({id:uid(),sid:s.id,m:m,d:todayIso(),a:bal,n:'Salaire du mois',no:nextPayNo(todayIso())}); privSave(); renderPaie(); toast('Paiement enregistré.'); } }
 }
-$('#ppRows').addEventListener('click',ppRowsClick); $('#hpRows').addEventListener('click',ppRowsClick);
+$('#ppRows').addEventListener('click',ppRowsClick); $('#hpRows').addEventListener('click',ppRowsClick); $('#ppRows').addEventListener('click',ppHistClick);
 
 function payRcpBuild(p){
   var s=staffOf(p.sid); if(!s) return null;
@@ -2554,7 +2567,7 @@ function ppHistClick(e){
   if(b.dataset.pp==='edit'){ pve=b.dataset.id; pvc=null; renderPaie(); return; }
   if(b.dataset.pp==='ecancel'){ pve=null; renderPaie(); return; }
   if(b.dataset.pp==='esave'){
-    var rw=b.closest('tr'), pp2=priv.pay.filter(function(x){return x.id===b.dataset.id;})[0]; if(!rw||!pp2) return;
+    var rw=b.closest('[data-pe-row]'), pp2=priv.pay.filter(function(x){return x.id===b.dataset.id;})[0]; if(!rw||!pp2) return;
     var na=money(rw.querySelector('[data-pe="a"]').value), nd=rw.querySelector('[data-pe="d"]').value||pp2.d, nn=rw.querySelector('[data-pe="n"]').value.trim().replace(/\s+/g,' ').slice(0,80);
     if(na<=0){ toast('Entrez un montant supérieur à 0.'); return; }
     if(na!==pp2.a) pp2.snt=null;
@@ -2611,6 +2624,19 @@ function renderPaie(){
 }
 function ppRowHtml(r){
   return '<tr><td class="tl">'+esc(r.s.name)+(r.s.role?'<br><span class="hint">'+esc(r.s.role)+'</span>':'')+'</td><td class="n">'+fmt(r.due)+'</td><td class="n">'+fmt(r.paid)+'</td><td class="n">'+balHtml(r.bal)+'</td><td>'+(r.bal>0?'<button type="button" class="btn sm" data-pp="full" data-id="'+esc(r.s.id)+'">Payer le solde</button> ':'')+'<button type="button" class="ghost sm" data-pp="slip" data-id="'+esc(r.s.id)+'">Fiche de paie (PDF)</button></td></tr>';
+}
+function ppLineHtml(p){
+  var mo=schoolMonths(priv.pay.map(function(x){return x.m;}));
+  if(pve===p.id){
+    return '<div class="payln" data-pe-row="'+esc(p.id)+'"><input type="date" data-pe="d" value="'+esc(p.d)+'" aria-label="Date du paiement"><input type="number" inputmode="decimal" min="0" step="0.01" data-pe="a" value="'+p.a+'" style="width:120px" aria-label="Montant"><input type="text" data-pe="n" maxlength="80" placeholder="Note" value="'+esc(p.n||'')+'" aria-label="Note"><select data-pe="m" aria-label="Mois travaillé">'+mo.map(function(mm){ return '<option value="'+esc(mm)+'"'+(mm===p.m?' selected':'')+'>'+esc(monthLabel(mm+'-01'))+'</option>'; }).join('')+'</select><button type="button" class="btn sm" data-pp="esave" data-id="'+esc(p.id)+'">Enregistrer</button> <button type="button" class="ghost sm" data-pp="ecancel">Annuler</button></div>';
+  }
+  return '<div class="payln"><span class="grow"><b>'+fmt(p.a)+'</b> · '+esc(shortDate(p.d))+'<br><span class="hint">'+esc(p.no||'')+(p.n?' · '+esc(p.n):'')+'</span></span>'+(pvc===p.id?'<button type="button" class="rm" data-pp="yes" data-id="'+esc(p.id)+'">Oui, retirer</button> <button type="button" class="ghost sm" data-pp="no">Non</button>':'<button type="button" class="btn sm" data-pp="rcp" data-id="'+esc(p.id)+'">Reçu (PDF)</button> <button type="button" class="ghost sm" data-pp="snd" data-id="'+esc(p.id)+'">Envoyer'+(p.snt?' ✓':'')+'</button> <button type="button" class="ghost sm" data-pp="edit" data-id="'+esc(p.id)+'">Modifier</button> <button type="button" class="ghost sm" data-pp="del" data-id="'+esc(p.id)+'">Retirer</button>')+'</div>';
+}
+function ppBlockHtml(r,m){
+  var ps=priv.pay.filter(function(p){return p.sid===r.s.id&&p.m===m;}).sort(function(a,b){return a.d.localeCompare(b.d);});
+  return '<tr><td class="tl"><b>'+esc(r.s.name)+'</b>'+(r.s.role?'<br><span class="hint">'+esc(r.s.role)+'</span>':'')+'</td><td class="n">'+fmt(r.due)+'</td><td class="n">'+fmt(r.paid)+'</td><td class="n">'+balHtml(r.bal)+'</td><td><button type="button" class="ghost sm" data-pp="slip" data-id="'+esc(r.s.id)+'">Fiche de paie (PDF)</button></td></tr>'
+   +'<tr class="subrow"><td colspan="5">'+ps.map(ppLineHtml).join('')
+   +'<div class="payent"><input type="date" data-ne="d" value="'+todayIso()+'" aria-label="Date du paiement"><input type="number" inputmode="decimal" min="0" step="0.01" data-ne="a" placeholder="Montant" value="'+(r.bal>0?r.bal:'')+'" aria-label="Montant payé"><button type="button" class="btn sm" data-pp="pay" data-id="'+esc(r.s.id)+'">Payer</button></div></td></tr>';
 }
 function ppHistHtml(p,run){
   var s=staffOf(p.sid);
