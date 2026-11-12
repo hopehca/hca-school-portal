@@ -533,7 +533,8 @@ section[id^="v-"] h2{color:var(--accent)}
         <h2 style="font-size:1rem">Enregistrer un paiement</h2>
         <form class="fadd" id="ppForm" autocomplete="off">
           <label class="lbl full">Employé(e)<select id="ppWho" class="drow"></select></label>
-          <label class="lbl">Date du paiement (le mois suit la date)<input id="ppDate" type="date"></label>
+          <label class="lbl full">Mois travaillé (le salaire est pour ce mois)<select id="ppForM" class="drow"></select></label>
+          <label class="lbl">Date du paiement<input id="ppDate" type="date"></label>
           <label class="lbl">Montant payé<input id="ppAmt" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00"></label>
           <label class="lbl full">Note (chèque n°, avance…)<input id="ppNote" type="text" maxlength="80"></label>
           <button type="submit" class="btn full">Ajouter le paiement</button>
@@ -548,7 +549,8 @@ section[id^="v-"] h2{color:var(--accent)}
         <p class="hint">Envoyé = l'argent que vous envoyez pour la paie. Utilisé = tous les paiements du mois, section privée comprise. Reste = envoyé moins utilisé. Le mois choisi plus haut s'applique ici.</p>
         <h2 style="font-size:1rem">Argent envoyé pour la paie</h2>
         <form class="fadd" id="fdForm" autocomplete="off">
-          <label class="lbl">Date<input id="fdDate" type="date"></label>
+          <label class="lbl full">Mois (la paie est pour ce mois)<select id="fdForM" class="drow"></select></label>
+          <label class="lbl">Date d'envoi<input id="fdDate" type="date"></label>
           <label class="lbl">Montant envoyé<input id="fdAmt" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00"></label>
           <label class="lbl full">Note (envoyé à qui, comment)<input id="fdNote" type="text" maxlength="80"></label>
           <button type="submit" class="btn full">Ajouter le montant envoyé</button>
@@ -576,6 +578,7 @@ section[id^="v-"] h2{color:var(--accent)}
         <h2 style="font-size:1rem">Enregistrer un paiement (section privée)</h2>
         <form class="fadd" id="hpForm" autocomplete="off">
           <label class="lbl full">Employé(e)<select id="hpWho" class="drow"></select></label>
+          <label class="lbl full">Mois travaillé (le salaire est pour ce mois)<select id="hpForM" class="drow"></select></label>
           <label class="lbl">Date du paiement<input id="hpDate" type="date"></label>
           <label class="lbl">Montant payé<input id="hpAmt" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00"></label>
           <label class="lbl full">Note<input id="hpNote" type="text" maxlength="80"></label>
@@ -688,7 +691,7 @@ section[id^="v-"] h2{color:var(--accent)}
     </div>
   </section>
 </div>
-<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V82 · 11/11/2026 · le mois du paiement suit la date saisie; Modifier avec choix du mois; rapport de paie sur une page</p>
+<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V83 · 11/11/2026 · mois travaillé et date du paiement séparés (comme un chéquier); rapport de paie sur une page</p>
 <div id="toast" class="toast" role="status" hidden></div>
 <div id="printReport" aria-hidden="true"></div>
 
@@ -2459,7 +2462,18 @@ $('#stForm').addEventListener('submit',function(e){
   priv.staff.push({id:uid(),name:n,role:$('#stRole').value.trim().slice(0,60),pay:money($('#stPay').value),ph:$('#stPh').value.trim().slice(0,30),off:false});
   $('#stName').value=''; $('#stRole').value=''; $('#stPay').value=''; $('#stPh').value=''; $('#stAdd').open=false; privSave(); renderPaie(); toast('Employé(e) ajouté(e).');
 });
-function mOf(d){ var x=String(d||'').slice(0,7), r=/^\d{4}-\d{2}$/.test(x)?x:$('#ppMon').value; try{ $('#ppMon').value=r; }catch(_){} return r; }
+function mOf(id){ var el=$(id), r=(el&&el.value)||$('#ppMon').value; try{ $('#ppMon').value=r; }catch(_){} return r; }
+function forMonths(){
+  var pm=$('#ppMon').value;
+  ['ppForM','hpForM','fdForM'].forEach(function(id){
+    var sel=document.getElementById(id); if(!sel) return;
+    var ms=schoolMonths(priv.pay.map(function(x){return x.m;}).concat(priv.fund.map(function(x){return x.m;}))), h=ms.map(function(mm){ return '<option value="'+mm+'">'+esc(monthLabel(mm+'-01'))+'</option>'; }).join('');
+    if(sel._h!==h){ sel._h=h; var keep=sel.value; sel.innerHTML=h; if(keep) sel.value=keep; }
+    if(!sel._bound){ sel._bound=true; sel.addEventListener('change',function(){ sel._t=true; }); }
+    if(sel._pm!==pm){ sel._pm=pm; sel._t=false; }
+    if(!sel._t) sel.value=pm;
+  });
+}
 function stChange(e){
   var f=e.target.dataset.sf, card=e.target.closest('[data-st]'); if(!f||!card||!canPriv()) return;
   var s=staffOf(card.dataset.st); if(!s) return;
@@ -2474,7 +2488,7 @@ $('#ppForm').addEventListener('submit',function(e){
   e.preventDefault(); if(!canPriv()||!privReady) return;
   var sid=$('#ppWho').value, a=money($('#ppAmt').value); if(!sid){ toast("Choisissez un(e) employé(e)."); return; } if(a<=0){ toast('Entrez un montant supérieur à 0.'); return; }
   var d=$('#ppDate').value||todayIso();
-  priv.pay.push({id:uid(),sid:sid,m:mOf(d),d:d,a:a,n:$('#ppNote').value.trim().replace(/\s+/g,' ').slice(0,80),no:nextPayNo(d)});
+  priv.pay.push({id:uid(),sid:sid,m:mOf('#ppForM'),d:d,a:a,n:$('#ppNote').value.trim().replace(/\s+/g,' ').slice(0,80),no:nextPayNo(d)});
   $('#ppAmt').value=''; $('#ppNote').value=''; privSave(); renderPaie(); toast('Paiement enregistré.');
 });
 function slipPdf(s,m){
@@ -2591,7 +2605,7 @@ $('#ppPdf').addEventListener('click',function(){
 
 var addInit={st:false,hs:false};
 function renderPaie(){
-  renderPaieMain(); renderHid(); renderFunds();
+  renderPaieMain(); renderHid(); renderFunds(); forMonths();
   if(!addInit.st&&privReady){ addInit.st=true; $('#stAdd').open=!priv.staff.some(function(s){return !s.hid;}); }
   if(!addInit.hs&&privReady){ addInit.hs=true; $('#hsAdd').open=!priv.staff.some(function(s){return !!s.hid;}); }
 }
@@ -2601,7 +2615,7 @@ function ppRowHtml(r){
 function ppHistHtml(p,run){
   var s=staffOf(p.sid);
   if(pve===p.id){
-    return '<tr data-pe-row="'+esc(p.id)+'"><td class="tl"><input type="date" data-pe="d" value="'+esc(p.d)+'" style="width:100%"><br><input type="text" data-pe="n" maxlength="80" placeholder="Note" value="'+esc(p.n||'')+'" style="width:100%;margin-top:4px"><br><span class="hint">Mois du paiement</span><br><select data-pe="m" style="width:100%">'+schoolMonths(priv.pay.map(function(x){return x.m;})).map(function(mm){ return '<option value="'+esc(mm)+'"'+(mm===p.m?' selected':'')+'>'+esc(monthLabel(mm+'-01'))+'</option>'; }).join('')+'</select><br><span class="hint">'+esc(p.no||'')+'</span></td><td class="tl">'+esc(s?s.name:'-')+'</td><td class="n"><input type="number" inputmode="decimal" min="0" step="0.01" data-pe="a" value="'+p.a+'" style="width:100%"></td><td class="n">'+fmt(run)+'</td><td><button type="button" class="btn sm" data-pp="esave" data-id="'+esc(p.id)+'">Enregistrer</button> <button type="button" class="ghost sm" data-pp="ecancel">Annuler</button></td></tr>';
+    return '<tr data-pe-row="'+esc(p.id)+'"><td class="tl"><input type="date" data-pe="d" value="'+esc(p.d)+'" style="width:100%"><br><input type="text" data-pe="n" maxlength="80" placeholder="Note" value="'+esc(p.n||'')+'" style="width:100%;margin-top:4px"><br><span class="hint">Mois travaillé</span><br><select data-pe="m" style="width:100%">'+schoolMonths(priv.pay.map(function(x){return x.m;})).map(function(mm){ return '<option value="'+esc(mm)+'"'+(mm===p.m?' selected':'')+'>'+esc(monthLabel(mm+'-01'))+'</option>'; }).join('')+'</select><br><span class="hint">'+esc(p.no||'')+'</span></td><td class="tl">'+esc(s?s.name:'-')+'</td><td class="n"><input type="number" inputmode="decimal" min="0" step="0.01" data-pe="a" value="'+p.a+'" style="width:100%"></td><td class="n">'+fmt(run)+'</td><td><button type="button" class="btn sm" data-pp="esave" data-id="'+esc(p.id)+'">Enregistrer</button> <button type="button" class="ghost sm" data-pp="ecancel">Annuler</button></td></tr>';
   }
   return '<tr><td class="tl">'+esc(shortDate(p.d))+'<br><span class="hint">'+esc(p.no||'')+(p.n?' · '+esc(p.n):'')+'</span></td><td class="tl">'+esc(s?s.name:'-')+'</td><td class="n">'+fmt(p.a)+'</td><td class="n">'+fmt(run)+'</td><td>'+(pvc===p.id?'<button type="button" class="rm" data-pp="yes" data-id="'+esc(p.id)+'">Oui</button> <button type="button" class="ghost sm" data-pp="no">Non</button>':'<button type="button" class="btn sm" data-pp="rcp" data-id="'+esc(p.id)+'">Reçu (PDF)</button> <button type="button" class="ghost sm" data-pp="snd" data-id="'+esc(p.id)+'">Envoyer'+(p.snt?' ✓':'')+'</button> <button type="button" class="ghost sm" data-pp="edit" data-id="'+esc(p.id)+'">Modifier</button> <button type="button" class="ghost sm" data-pp="del" data-id="'+esc(p.id)+'">Retirer</button>')+'</td></tr>';
 }
@@ -2631,7 +2645,7 @@ $('#hpForm').addEventListener('submit',function(e){
   e.preventDefault(); if(!canPriv()||!privReady) return;
   var sid=$('#hpWho').value, a=money($('#hpAmt').value); if(!sid){ toast("Choisissez un(e) employé(e)."); return; } if(a<=0){ toast('Entrez un montant supérieur à 0.'); return; }
   var d=$('#hpDate').value||todayIso();
-  priv.pay.push({id:uid(),sid:sid,m:mOf(d),d:d,a:a,n:$('#hpNote').value.trim().replace(/\s+/g,' ').slice(0,80),no:nextPayNo(d)});
+  priv.pay.push({id:uid(),sid:sid,m:mOf('#hpForM'),d:d,a:a,n:$('#hpNote').value.trim().replace(/\s+/g,' ').slice(0,80),no:nextPayNo(d)});
   $('#hpAmt').value=''; $('#hpNote').value=''; privSave(); renderPaie(); toast('Paiement enregistré.');
 });
 /* ----- Argent envoyé pour la paie + résumé du mois : envoyé / utilisé / reste ----- */
@@ -2643,7 +2657,7 @@ function renderFunds(){
   var fl=priv.fund.filter(function(f){return f.m===m;}).sort(function(a,b){return a.d.localeCompare(b.d);});
   setH($('#fdRows'),fl.length?fl.map(function(f){
     if(fve===f.id){
-      return '<tr data-fe-row="'+esc(f.id)+'"><td class="tl"><input type="date" data-fe="d" value="'+esc(f.d)+'" style="width:100%"><br><input type="text" data-fe="n" maxlength="80" placeholder="Note" value="'+esc(f.n||'')+'" style="width:100%;margin-top:4px"><br><span class="hint">Mois</span><br><select data-fe="m" style="width:100%">'+schoolMonths(priv.fund.map(function(x){return x.m;}).concat(priv.pay.map(function(x){return x.m;}))).map(function(mm){ return '<option value="'+esc(mm)+'"'+(mm===f.m?' selected':'')+'>'+esc(monthLabel(mm+'-01'))+'</option>'; }).join('')+'</select></td><td class="n"><input type="number" inputmode="decimal" min="0" step="0.01" data-fe="a" value="'+f.a+'" style="width:100%"></td><td><button type="button" class="btn sm" data-fd="esave" data-id="'+esc(f.id)+'">Enregistrer</button> <button type="button" class="ghost sm" data-fd="ecancel">Annuler</button></td></tr>';
+      return '<tr data-fe-row="'+esc(f.id)+'"><td class="tl"><input type="date" data-fe="d" value="'+esc(f.d)+'" style="width:100%"><br><input type="text" data-fe="n" maxlength="80" placeholder="Note" value="'+esc(f.n||'')+'" style="width:100%;margin-top:4px"><br><span class="hint">Mois de la paie</span><br><select data-fe="m" style="width:100%">'+schoolMonths(priv.fund.map(function(x){return x.m;}).concat(priv.pay.map(function(x){return x.m;}))).map(function(mm){ return '<option value="'+esc(mm)+'"'+(mm===f.m?' selected':'')+'>'+esc(monthLabel(mm+'-01'))+'</option>'; }).join('')+'</select></td><td class="n"><input type="number" inputmode="decimal" min="0" step="0.01" data-fe="a" value="'+f.a+'" style="width:100%"></td><td><button type="button" class="btn sm" data-fd="esave" data-id="'+esc(f.id)+'">Enregistrer</button> <button type="button" class="ghost sm" data-fd="ecancel">Annuler</button></td></tr>';
     }
     return '<tr><td class="tl">'+esc(shortDate(f.d))+(f.n?'<br><span class="hint">'+esc(f.n)+'</span>':'')+'</td><td class="n">'+fmt(f.a)+'</td><td>'+(pvc===f.id?'<button type="button" class="rm" data-fd="yes" data-id="'+esc(f.id)+'">Oui</button> <button type="button" class="ghost sm" data-fd="no">Non</button>':'<button type="button" class="ghost sm" data-fd="edit" data-id="'+esc(f.id)+'">Modifier</button> <button type="button" class="ghost sm" data-fd="del" data-id="'+esc(f.id)+'">Retirer</button>')+'</td></tr>';
   }).join('')+'<tr class="mhead"><th scope="row" class="tl">Total envoyé - '+esc(monthLabel(m+'-01'))+'</th><th class="n">'+fmt(sent)+'</th><th></th></tr>':'<tr><td class="tl hint" colspan="3">Aucun montant envoyé ce mois-ci.</td></tr>');
@@ -2656,7 +2670,7 @@ $('#fdForm').addEventListener('submit',function(e){
   e.preventDefault(); if(!canPriv()||!privReady) return;
   var a=money($('#fdAmt').value); if(a<=0){ toast('Entrez un montant supérieur à 0.'); return; }
   var d=$('#fdDate').value||todayIso();
-  priv.fund.push({id:uid(),m:mOf(d),d:d,a:a,n:$('#fdNote').value.trim().replace(/\s+/g,' ').slice(0,80)});
+  priv.fund.push({id:uid(),m:mOf('#fdForM'),d:d,a:a,n:$('#fdNote').value.trim().replace(/\s+/g,' ').slice(0,80)});
   $('#fdAmt').value=''; $('#fdNote').value=''; privSave(); renderPaie(); toast('Montant envoyé enregistré.');
 });
 $('#fdRows').addEventListener('click',function(e){
