@@ -550,7 +550,7 @@ tr.subrow>td{padding:0 10px 12px 10px;text-align:left}
         <div class="tablewrap" style="display:none"><table><thead><tr><th scope="col" class="tl">Date</th><th scope="col" class="tl">Employé(e)</th><th scope="col">Montant</th><th scope="col">Cumul</th><th scope="col"></th></tr></thead><tbody id="ppHist"></tbody></table></div>
         <div id="ppYrBox" hidden><h2 style="font-size:1rem" id="ppYrT"></h2><div class="tablewrap"><table><thead><tr><th scope="col" class="tl">Mois</th><th scope="col">Salaire</th><th scope="col">Payé</th><th scope="col">Balance</th></tr></thead><tbody id="ppYr"></tbody></table></div></div>
         <div class="drow"><button type="button" class="btn" id="ppPdf">Rapport de paie (PDF)</button><button type="button" class="ghost" id="ppCsv">Paie en tableau (Excel)</button></div>
-        <div class="drow"><button type="button" class="ghost" id="ppWipe">Vider la paie de ce mois…</button></div>
+        <div class="drow"><button type="button" class="ghost" id="ppWipe">Supprimer les paiements de ce mois…</button></div>
       </div>
       <div class="dcard" id="ppFund">
         <h2>Résumé du mois : envoyé, utilisé, reste</h2>
@@ -700,7 +700,7 @@ tr.subrow>td{padding:0 10px 12px 10px;text-align:left}
     </div>
   </section>
 </div>
-<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V87 · 12/11/2026 · rapport de paie : mois travaillé clair; Vider la paie d'un mois; Paie s'ouvre sur le dernier mois payé</p>
+<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V88 · 12/11/2026 · rapport de paie : mois travaillé clair; supprimer les paiements d'un mois (sans toucher à l'argent envoyé); Paie s'ouvre sur le dernier mois payé</p>
 <div id="toast" class="toast" role="status" hidden></div>
 <div id="printReport" aria-hidden="true"></div>
 
@@ -3253,11 +3253,11 @@ $('#btnPrintList').addEventListener('click',function(){
 
 $('#ppWipe').addEventListener('click',function(){
   if(!canPriv()||!privReady) return;
-  var m=$('#ppMon').value, np=priv.pay.filter(function(p){return p.m===m&&!isHidPay(p);}).length, nf=priv.fund.filter(function(f){return f.m===m;}).length;
-  if(!np&&!nf){ toast('Rien à supprimer pour '+monthLabel(m+'-01')+'.'); return; }
-  if(!window.confirm('Supprimer TOUS les paiements ('+np+') et les montants envoyés ('+nf+') du mois de '+monthLabel(m+'-01')+' ? Cette action est définitive. La section privée n\'est pas touchée.')) return;
-  priv.pay=priv.pay.filter(function(p){return !(p.m===m&&!isHidPay(p));}); priv.fund=priv.fund.filter(function(f){return f.m!==m;});
-  pvc=null; pve=null; fve=null; privSave(); renderPaie(); toast('Paie de '+monthLabel(m+'-01')+' vidée.');
+  var m=$('#ppMon').value, np=priv.pay.filter(function(p){return p.m===m&&!isHidPay(p);}).length;
+  if(!np){ toast('Aucun paiement à supprimer pour '+monthLabel(m+'-01')+'.'); return; }
+  if(!window.confirm('Supprimer TOUS les paiements ('+np+') du mois de '+monthLabel(m+'-01')+' ? Cette action est définitive. Les montants envoyés et la section privée ne sont pas touchés.')) return;
+  priv.pay=priv.pay.filter(function(p){return !(p.m===m&&!isHidPay(p));});
+  pvc=null; pve=null; privSave(); renderPaie(); toast('Paiements de '+monthLabel(m+'-01')+' supprimés.');
 });
 
 /* ---------- Démarrage ---------- */
