@@ -533,7 +533,7 @@ section[id^="v-"] h2{color:var(--accent)}
         <h2 style="font-size:1rem">Enregistrer un paiement</h2>
         <form class="fadd" id="ppForm" autocomplete="off">
           <label class="lbl full">Employé(e)<select id="ppWho" class="drow"></select></label>
-          <label class="lbl">Date du paiement<input id="ppDate" type="date"></label>
+          <label class="lbl">Date du paiement (le mois suit la date)<input id="ppDate" type="date"></label>
           <label class="lbl">Montant payé<input id="ppAmt" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00"></label>
           <label class="lbl full">Note (chèque n°, avance…)<input id="ppNote" type="text" maxlength="80"></label>
           <button type="submit" class="btn full">Ajouter le paiement</button>
@@ -688,7 +688,7 @@ section[id^="v-"] h2{color:var(--accent)}
     </div>
   </section>
 </div>
-<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V81 · 11/11/2026 · Modifier paiements et montants envoyés : choix du mois; rapport de paie sur une page</p>
+<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V82 · 11/11/2026 · le mois du paiement suit la date saisie; Modifier avec choix du mois; rapport de paie sur une page</p>
 <div id="toast" class="toast" role="status" hidden></div>
 <div id="printReport" aria-hidden="true"></div>
 
@@ -2459,6 +2459,7 @@ $('#stForm').addEventListener('submit',function(e){
   priv.staff.push({id:uid(),name:n,role:$('#stRole').value.trim().slice(0,60),pay:money($('#stPay').value),ph:$('#stPh').value.trim().slice(0,30),off:false});
   $('#stName').value=''; $('#stRole').value=''; $('#stPay').value=''; $('#stPh').value=''; $('#stAdd').open=false; privSave(); renderPaie(); toast('Employé(e) ajouté(e).');
 });
+function mOf(d){ var x=String(d||'').slice(0,7), r=/^\d{4}-\d{2}$/.test(x)?x:$('#ppMon').value; try{ $('#ppMon').value=r; }catch(_){} return r; }
 function stChange(e){
   var f=e.target.dataset.sf, card=e.target.closest('[data-st]'); if(!f||!card||!canPriv()) return;
   var s=staffOf(card.dataset.st); if(!s) return;
@@ -2473,7 +2474,7 @@ $('#ppForm').addEventListener('submit',function(e){
   e.preventDefault(); if(!canPriv()||!privReady) return;
   var sid=$('#ppWho').value, a=money($('#ppAmt').value); if(!sid){ toast("Choisissez un(e) employé(e)."); return; } if(a<=0){ toast('Entrez un montant supérieur à 0.'); return; }
   var d=$('#ppDate').value||todayIso();
-  priv.pay.push({id:uid(),sid:sid,m:$('#ppMon').value,d:d,a:a,n:$('#ppNote').value.trim().replace(/\s+/g,' ').slice(0,80),no:nextPayNo(d)});
+  priv.pay.push({id:uid(),sid:sid,m:mOf(d),d:d,a:a,n:$('#ppNote').value.trim().replace(/\s+/g,' ').slice(0,80),no:nextPayNo(d)});
   $('#ppAmt').value=''; $('#ppNote').value=''; privSave(); renderPaie(); toast('Paiement enregistré.');
 });
 function slipPdf(s,m){
@@ -2630,7 +2631,7 @@ $('#hpForm').addEventListener('submit',function(e){
   e.preventDefault(); if(!canPriv()||!privReady) return;
   var sid=$('#hpWho').value, a=money($('#hpAmt').value); if(!sid){ toast("Choisissez un(e) employé(e)."); return; } if(a<=0){ toast('Entrez un montant supérieur à 0.'); return; }
   var d=$('#hpDate').value||todayIso();
-  priv.pay.push({id:uid(),sid:sid,m:$('#ppMon').value,d:d,a:a,n:$('#hpNote').value.trim().replace(/\s+/g,' ').slice(0,80),no:nextPayNo(d)});
+  priv.pay.push({id:uid(),sid:sid,m:mOf(d),d:d,a:a,n:$('#hpNote').value.trim().replace(/\s+/g,' ').slice(0,80),no:nextPayNo(d)});
   $('#hpAmt').value=''; $('#hpNote').value=''; privSave(); renderPaie(); toast('Paiement enregistré.');
 });
 /* ----- Argent envoyé pour la paie + résumé du mois : envoyé / utilisé / reste ----- */
@@ -2655,7 +2656,7 @@ $('#fdForm').addEventListener('submit',function(e){
   e.preventDefault(); if(!canPriv()||!privReady) return;
   var a=money($('#fdAmt').value); if(a<=0){ toast('Entrez un montant supérieur à 0.'); return; }
   var d=$('#fdDate').value||todayIso();
-  priv.fund.push({id:uid(),m:$('#ppMon').value,d:d,a:a,n:$('#fdNote').value.trim().replace(/\s+/g,' ').slice(0,80)});
+  priv.fund.push({id:uid(),m:mOf(d),d:d,a:a,n:$('#fdNote').value.trim().replace(/\s+/g,' ').slice(0,80)});
   $('#fdAmt').value=''; $('#fdNote').value=''; privSave(); renderPaie(); toast('Montant envoyé enregistré.');
 });
 $('#fdRows').addEventListener('click',function(e){
