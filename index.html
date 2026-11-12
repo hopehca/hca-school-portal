@@ -688,7 +688,7 @@ section[id^="v-"] h2{color:var(--accent)}
     </div>
   </section>
 </div>
-<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V77 · 31/10/2026 · paie : bouton Modifier sur les paiements enregistrés</p>
+<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V78 · 11/11/2026 · rapport de paie plus compact (signature sur la même page)</p>
 <div id="toast" class="toast" role="status" hidden></div>
 <div id="printReport" aria-hidden="true"></div>
 
@@ -1867,9 +1867,9 @@ function pdfFoot(o,label){
     d.text(pdfTxt(label+' - '+shortDate(todayIso())),o.M,o.PH-26); d.text('Page '+p+' / '+n,o.PW-o.M,o.PH-26,{align:'right'}); }
 }
 function pdfSign(o){
-  var d=o.doc; pdfNeed(o,90); o.y+=16;
+  var d=o.doc; if(o.y+66>o.PH-34){ d.addPage(); o.y=o.M; } o.y+=12;
   d.setFont('helvetica','normal'); d.setFontSize(10.5); d.setTextColor(75,88,114);
-  d.text(pdfTxt('Établi par : '+(sender||'______________________________')),o.M,o.y); o.y+=34;
+  d.text(pdfTxt('Établi par : '+(sender||'______________________________')),o.M,o.y); o.y+=30;
   d.setDrawColor(120,130,150); d.line(o.M,o.y,o.M+210,o.y); d.line(o.PW-o.M-210,o.y,o.PW-o.M,o.y); o.y+=13;
   d.setFontSize(9); d.text('Signature',o.M,o.y); d.text('Date',o.PW-o.M-210,o.y);
 }
@@ -2573,7 +2573,7 @@ $('#ppPdf').addEventListener('click',function(){
   if(!hp.length){ d.setFont('helvetica','normal'); d.setFontSize(10); d.text(pdfTxt('Aucun paiement ce mois-ci.'),M,o.y+10); o.y+=20; }
   hp.forEach(function(p){ pdfNeed(o,20); var sf=staffOf(p.sid); run=Math.round((run+p.a)*100)/100;
     d.setFont('helvetica','normal'); d.setFontSize(9.5); d.setTextColor(17,27,46); d.text(pdfTxt(shortDate(p.d)),M,o.y+10); d.text(d.splitTextToSize(pdfTxt((sf?sf.name:'-')+(p.n?' ('+p.n+')':'')),CW-260)[0],M+70,o.y+10);
-    d.text(pdfMoney(p.a),M+CW-110,o.y+10,{align:'right'}); d.setFont('helvetica','bold'); d.text(pdfMoney(run),M+CW,o.y+10,{align:'right'}); o.y+=17; });
+    d.text(pdfMoney(p.a),M+CW-110,o.y+10,{align:'right'}); d.setFont('helvetica','bold'); d.text(pdfMoney(run),M+CW,o.y+10,{align:'right'}); o.y+=15; });
   if(hp.length){ pdfNeed(o,24); d.setFont('helvetica','bold'); d.setFontSize(11); d.text(pdfTxt('Total payé du mois'),M,o.y+14); d.text(pdfMoney(run),M+CW,o.y+14,{align:'right'}); o.y+=26; }
   pdfSign(o); pdfDone(o,'rapport-paie-'+m+'.pdf','Rapport de paie');
 });
