@@ -707,7 +707,7 @@ tr.subrow>td{padding:0 10px 12px 10px;text-align:left}
     </div>
   </section>
 </div>
-<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V90 · 12/11/2026 · Corriger un mois; toucher un mois du résumé l'ouvre</p>
+<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V91 · 12/11/2026 · Corriger un mois (avec « Tous les mois »); toucher un mois du résumé l'ouvre</p>
 <div id="toast" class="toast" role="status" hidden></div>
 <div id="printReport" aria-hidden="true"></div>
 
@@ -2485,12 +2485,13 @@ function monthTools(){
   var ms=schoolMonths(priv.pay.map(function(x){return x.m;}).concat(priv.fund.map(function(x){return x.m;}))), h=ms.map(function(mm){ return '<option value="'+mm+'">'+esc(monthLabel(mm+'-01'))+'</option>'; }).join('');
   var pm=$('#ppMon').value;
   [fr,to].forEach(function(sel){
-    if(sel._h!==h){ sel._h=h; var keep=sel.value; sel.innerHTML=h; if(keep) sel.value=keep; }
+    var hh=(sel===fr?'<option value="ALL">Tous les mois</option>':'')+h;
+    if(sel._h!==hh){ sel._h=hh; var keep=sel.value; sel.innerHTML=hh; if(keep) sel.value=keep; }
     if(!sel._bound){ sel._bound=true; sel.addEventListener('change',function(){ sel._t=true; }); }
   });
   if(fr._pm!==pm){ fr._pm=pm; fr._t=false; to._t=false; }
   if(!fr._t) fr.value=pm;
-  if(!to._t){ var i=ms.indexOf(fr.value); to.value=(i>0?ms[i-1]:fr.value); }
+  if(!to._t){ var i=ms.indexOf(fr.value); to.value=(i>0?ms[i-1]:(ms[0]||fr.value)); }
 }
 function forMonths(){
   var pm=$('#ppMon').value;
@@ -3272,15 +3273,17 @@ $('#btnPrintList').addEventListener('click',function(){
 
 $('#ppWipe').addEventListener('click',function(){
   if(!canPriv()||!privReady) return;
-  var m=$('#mtFrom').value, np=priv.pay.filter(function(p){return p.m===m&&!isHidPay(p);}).length;
-  if(!np){ toast('Aucun paiement à supprimer pour '+monthLabel(m+'-01')+'.'); return; }
-  if(!window.confirm('Supprimer TOUS les paiements ('+np+') du mois de '+monthLabel(m+'-01')+' ? Cette action est définitive. Les montants envoyés et la section privée ne sont pas touchés.')) return;
-  priv.pay=priv.pay.filter(function(p){return !(p.m===m&&!isHidPay(p));});
-  pvc=null; pve=null; privSave(); renderPaie(); toast('Paiements de '+monthLabel(m+'-01')+' supprimés.');
+  var m=$('#mtFrom').value, all=(m==='ALL'), lbl=all?'tous les mois':'le mois de '+monthLabel(m+'-01');
+  var np=priv.pay.filter(function(p){return (all||p.m===m)&&!isHidPay(p);}).length;
+  if(!np){ toast('Aucun paiement à supprimer ('+lbl+').'); return; }
+  if(!window.confirm('Supprimer TOUS les paiements ('+np+') de '+lbl+' ? Cette action est définitive. Les montants envoyés et la section privée ne sont pas touchés.')) return;
+  priv.pay=priv.pay.filter(function(p){return !((all||p.m===m)&&!isHidPay(p));});
+  pvc=null; pve=null; privSave(); renderPaie(); toast(np+' paiements supprimés ('+lbl+').');
 });
 $('#mtMove').addEventListener('click',function(){
   if(!canPriv()||!privReady) return;
   var f=$('#mtFrom').value, t=$('#mtTo').value;
+  if(f==='ALL'){ toast('Choisissez un mois précis pour le déplacement.'); return; }
   if(f===t){ toast('Choisissez un autre mois pour le déplacement.'); return; }
   var list=priv.pay.filter(function(p){return p.m===f&&!isHidPay(p);});
   if(!list.length){ toast('Aucun paiement à déplacer pour '+monthLabel(f+'-01')+'.'); return; }
