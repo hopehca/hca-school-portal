@@ -688,7 +688,7 @@ section[id^="v-"] h2{color:var(--accent)}
     </div>
   </section>
 </div>
-<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V79 · 11/11/2026 · rapport de paie sur une page, sans noms répétés</p>
+<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V80 · 11/11/2026 · Modifier un paiement : choix du mois, rapport de paie sur une page</p>
 <div id="toast" class="toast" role="status" hidden></div>
 <div id="printReport" aria-hidden="true"></div>
 
@@ -2543,7 +2543,10 @@ function ppHistClick(e){
     var na=money(rw.querySelector('[data-pe="a"]').value), nd=rw.querySelector('[data-pe="d"]').value||pp2.d, nn=rw.querySelector('[data-pe="n"]').value.trim().replace(/\s+/g,' ').slice(0,80);
     if(na<=0){ toast('Entrez un montant supérieur à 0.'); return; }
     if(na!==pp2.a) pp2.snt=null;
-    pp2.a=na; pp2.d=nd; pp2.n=nn; pve=null; privSave(); renderPaie(); toast('Paiement modifié.'); return;
+    var nm=(rw.querySelector('[data-pe="m"]')||{}).value||pp2.m, moved=nm!==pp2.m;
+    pp2.a=na; pp2.d=nd; pp2.n=nn; pp2.m=nm; pve=null;
+    if(moved){ try{ $('#ppMon').value=nm; }catch(_){} }
+    privSave(); renderPaie(); toast(moved?('Paiement déplacé vers '+monthLabel(nm+'-01')+'.'):'Paiement modifié.'); return;
   }
   if(b.dataset.pp==='del') pvc=b.dataset.id; else if(b.dataset.pp==='no') pvc=null;
   else if(b.dataset.pp==='yes'){ priv.pay=priv.pay.filter(function(x){return x.id!==b.dataset.id;}); pvc=null; privSave(); toast('Paiement retiré.'); }
@@ -2597,7 +2600,7 @@ function ppRowHtml(r){
 function ppHistHtml(p,run){
   var s=staffOf(p.sid);
   if(pve===p.id){
-    return '<tr data-pe-row="'+esc(p.id)+'"><td class="tl"><input type="date" data-pe="d" value="'+esc(p.d)+'" style="width:100%"><br><input type="text" data-pe="n" maxlength="80" placeholder="Note" value="'+esc(p.n||'')+'" style="width:100%;margin-top:4px"><br><span class="hint">'+esc(p.no||'')+'</span></td><td class="tl">'+esc(s?s.name:'-')+'</td><td class="n"><input type="number" inputmode="decimal" min="0" step="0.01" data-pe="a" value="'+p.a+'" style="width:100%"></td><td class="n">'+fmt(run)+'</td><td><button type="button" class="btn sm" data-pp="esave" data-id="'+esc(p.id)+'">Enregistrer</button> <button type="button" class="ghost sm" data-pp="ecancel">Annuler</button></td></tr>';
+    return '<tr data-pe-row="'+esc(p.id)+'"><td class="tl"><input type="date" data-pe="d" value="'+esc(p.d)+'" style="width:100%"><br><input type="text" data-pe="n" maxlength="80" placeholder="Note" value="'+esc(p.n||'')+'" style="width:100%;margin-top:4px"><br><span class="hint">Mois du paiement</span><br><select data-pe="m" style="width:100%">'+schoolMonths(priv.pay.map(function(x){return x.m;})).map(function(mm){ return '<option value="'+esc(mm)+'"'+(mm===p.m?' selected':'')+'>'+esc(monthLabel(mm+'-01'))+'</option>'; }).join('')+'</select><br><span class="hint">'+esc(p.no||'')+'</span></td><td class="tl">'+esc(s?s.name:'-')+'</td><td class="n"><input type="number" inputmode="decimal" min="0" step="0.01" data-pe="a" value="'+p.a+'" style="width:100%"></td><td class="n">'+fmt(run)+'</td><td><button type="button" class="btn sm" data-pp="esave" data-id="'+esc(p.id)+'">Enregistrer</button> <button type="button" class="ghost sm" data-pp="ecancel">Annuler</button></td></tr>';
   }
   return '<tr><td class="tl">'+esc(shortDate(p.d))+'<br><span class="hint">'+esc(p.no||'')+(p.n?' · '+esc(p.n):'')+'</span></td><td class="tl">'+esc(s?s.name:'-')+'</td><td class="n">'+fmt(p.a)+'</td><td class="n">'+fmt(run)+'</td><td>'+(pvc===p.id?'<button type="button" class="rm" data-pp="yes" data-id="'+esc(p.id)+'">Oui</button> <button type="button" class="ghost sm" data-pp="no">Non</button>':'<button type="button" class="btn sm" data-pp="rcp" data-id="'+esc(p.id)+'">Reçu (PDF)</button> <button type="button" class="ghost sm" data-pp="snd" data-id="'+esc(p.id)+'">Envoyer'+(p.snt?' ✓':'')+'</button> <button type="button" class="ghost sm" data-pp="edit" data-id="'+esc(p.id)+'">Modifier</button> <button type="button" class="ghost sm" data-pp="del" data-id="'+esc(p.id)+'">Retirer</button>')+'</td></tr>';
 }
