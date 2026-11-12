@@ -688,7 +688,7 @@ section[id^="v-"] h2{color:var(--accent)}
     </div>
   </section>
 </div>
-<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V78 · 11/11/2026 · rapport de paie plus compact (signature sur la même page)</p>
+<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V79 · 11/11/2026 · rapport de paie sur une page, sans noms répétés</p>
 <div id="toast" class="toast" role="status" hidden></div>
 <div id="printReport" aria-hidden="true"></div>
 
@@ -2556,25 +2556,32 @@ $('#ppCsv').addEventListener('click',function(){
   saveFile('paie-'+m+'.csv',csvText(rows),'text/csv');
 });
 $('#ppPdf').addEventListener('click',function(){
-  var m=$('#ppMon').value, rows=payRows(m);
+  var m=$('#ppMon').value, rows=payRows(m), view=$('#ppView').value;
   var o=newPdf('Rapport de paie',monthLabel(m+'-01')); if(!o){ pdfNoLib(); return; }
-  var d=o.doc, M=o.M, CW=o.PW-2*M, cw=[CW-3*100,100,100,100], X=[M,0,0,0]; var xr=[M+cw[0]+cw[1]-8,M+cw[0]+cw[1]+cw[2]-8,M+CW-8];
+  var d=o.doc, M=o.M, CW=o.PW-2*M, cw=[CW-84-3*76,84,76,76,76], xd=M+cw[0], xr=[xd+cw[1]+cw[2]-8,xd+cw[1]+cw[2]+cw[3]-8,M+CW-8];
   function head(){ d.setFillColor(23,64,139); d.rect(M,o.y,CW,22,'F'); d.setFont('helvetica','bold'); d.setFontSize(10); d.setTextColor(255,255,255);
-    d.text('Employé(e)',M+8,o.y+15); d.text('Salaire',xr[0],o.y+15,{align:'right'}); d.text('Payé',xr[1],o.y+15,{align:'right'}); d.text('Balance',xr[2],o.y+15,{align:'right'}); o.y+=22; }
+    d.text('Employé(e)',M+8,o.y+15); d.text('Date',xd+4,o.y+15); d.text('Salaire',xr[0],o.y+15,{align:'right'}); d.text('Payé',xr[1],o.y+15,{align:'right'}); d.text('Balance',xr[2],o.y+15,{align:'right'}); o.y+=22; }
   head(); var TD=0,TP=0;
-  rows.forEach(function(r){ if(pdfNeed(o,26)) head(); TD+=r.due; TP+=r.paid;
-    d.setFont('helvetica','normal'); d.setFontSize(10); d.setTextColor(17,27,46); d.text(d.splitTextToSize(pdfTxt(r.s.name+(r.s.role?' - '+r.s.role:'')),cw[0]-12)[0],M+8,o.y+15);
-    d.text(pdfMoney(r.due),xr[0],o.y+15,{align:'right'}); d.text(pdfMoney(r.paid),xr[1],o.y+15,{align:'right'});
-    d.setFont('helvetica','bold'); d.text(pdfMoney(r.bal),xr[2],o.y+15,{align:'right'}); d.setDrawColor(226,231,240); d.line(M,o.y+22,M+CW,o.y+22); o.y+=22; });
+  rows.forEach(function(r){
+    var lines=d.splitTextToSize(pdfTxt(r.s.name+(r.s.role?' - '+r.s.role:'')),cw[0]-12).slice(0,2), rh=lines.length>1?32:22;
+    if(pdfNeed(o,rh+4)) head(); TD+=r.due; TP+=r.paid;
+    var ps=priv.pay.filter(function(p){return p.sid===r.s.id&&p.m===m;}).sort(function(a,b){return a.d.localeCompare(b.d);});
+    var dt=ps.length?pdfTxt(shortDate(ps[ps.length-1].d))+(ps.length>1?' (+'+(ps.length-1)+')':''):'-', my=o.y+rh/2+4;
+    d.setFont('helvetica','normal'); d.setTextColor(17,27,46);
+    if(lines.length>1){ d.setFontSize(10); d.text(lines[0],M+8,o.y+13); d.setFontSize(9); d.text(lines[1],M+8,o.y+25); } else { d.setFontSize(10); d.text(lines[0]||'',M+8,my); }
+    d.setFontSize(9); d.text(dt,xd+4,my); d.setFontSize(10);
+    d.text(pdfMoney(r.due),xr[0],my,{align:'right'}); d.text(pdfMoney(r.paid),xr[1],my,{align:'right'});
+    d.setFont('helvetica','bold'); d.text(pdfMoney(r.bal),xr[2],my,{align:'right'}); d.setDrawColor(226,231,240); d.line(M,o.y+rh,M+CW,o.y+rh); o.y+=rh; });
   pdfNeed(o,40); o.y+=6; d.setFont('helvetica','bold'); d.setFontSize(11); d.setTextColor(17,27,46); d.text('TOTAL',M+8,o.y+14);
   d.text(pdfMoney(TD),xr[0],o.y+14,{align:'right'}); d.text(pdfMoney(TP),xr[1],o.y+14,{align:'right'}); d.text(pdfMoney(Math.round((TD-TP)*100)/100),xr[2],o.y+14,{align:'right'}); o.y+=30;
-  var view=$('#ppView').value, hp=priv.pay.filter(function(p){return p.m===m&&!isHidPay(p)&&(!view||p.sid===view);}).sort(function(a,b){return a.d.localeCompare(b.d);}), run=0;
-  pdfNeed(o,50); o.y+=6; d.setFont('helvetica','bold'); d.setFontSize(9); d.setTextColor(75,88,114); d.text(pdfTxt('DÉTAIL DES PAIEMENTS'),M,o.y+8); o.y+=14; d.setDrawColor(211,218,230); d.line(M,o.y,M+CW,o.y); o.y+=6;
-  if(!hp.length){ d.setFont('helvetica','normal'); d.setFontSize(10); d.text(pdfTxt('Aucun paiement ce mois-ci.'),M,o.y+10); o.y+=20; }
-  hp.forEach(function(p){ pdfNeed(o,20); var sf=staffOf(p.sid); run=Math.round((run+p.a)*100)/100;
-    d.setFont('helvetica','normal'); d.setFontSize(9.5); d.setTextColor(17,27,46); d.text(pdfTxt(shortDate(p.d)),M,o.y+10); d.text(d.splitTextToSize(pdfTxt((sf?sf.name:'-')+(p.n?' ('+p.n+')':'')),CW-260)[0],M+70,o.y+10);
-    d.text(pdfMoney(p.a),M+CW-110,o.y+10,{align:'right'}); d.setFont('helvetica','bold'); d.text(pdfMoney(run),M+CW,o.y+10,{align:'right'}); o.y+=15; });
-  if(hp.length){ pdfNeed(o,24); d.setFont('helvetica','bold'); d.setFontSize(11); d.text(pdfTxt('Total payé du mois'),M,o.y+14); d.text(pdfMoney(run),M+CW,o.y+14,{align:'right'}); o.y+=26; }
+  if(view){
+    var hp=priv.pay.filter(function(p){return p.m===m&&!isHidPay(p)&&p.sid===view;}).sort(function(a,b){return a.d.localeCompare(b.d);}), run=0;
+    pdfNeed(o,50); o.y+=6; d.setFont('helvetica','bold'); d.setFontSize(9); d.setTextColor(75,88,114); d.text(pdfTxt('DÉTAIL DES PAIEMENTS'),M,o.y+8); o.y+=14; d.setDrawColor(211,218,230); d.line(M,o.y,M+CW,o.y); o.y+=6;
+    if(!hp.length){ d.setFont('helvetica','normal'); d.setFontSize(10); d.text(pdfTxt('Aucun paiement ce mois-ci.'),M,o.y+10); o.y+=20; }
+    hp.forEach(function(p){ pdfNeed(o,20); run=Math.round((run+p.a)*100)/100;
+      d.setFont('helvetica','normal'); d.setFontSize(9.5); d.setTextColor(17,27,46); d.text(pdfTxt(shortDate(p.d)),M,o.y+10); d.text(d.splitTextToSize(pdfTxt(p.n||'Paiement'),CW-260)[0],M+70,o.y+10);
+      d.text(pdfMoney(p.a),M+CW-110,o.y+10,{align:'right'}); d.setFont('helvetica','bold'); d.text(pdfMoney(run),M+CW,o.y+10,{align:'right'}); o.y+=15; });
+  }
   pdfSign(o); pdfDone(o,'rapport-paie-'+m+'.pdf','Rapport de paie');
 });
 
