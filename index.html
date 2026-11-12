@@ -556,6 +556,8 @@ tr.subrow>td{padding:0 10px 12px 10px;text-align:left}
           <label class="lbl" for="mtFrom">Mois à corriger<select id="mtFrom" class="drow"></select></label>
           <label class="lbl" for="mtTo">Déplacer ses paiements vers<select id="mtTo" class="drow"></select></label>
           <div class="drow"><button type="button" class="btn" id="mtMove">Déplacer les paiements</button><button type="button" class="ghost" id="ppWipe">Supprimer les paiements du mois à corriger…</button></div>
+          <div class="drow"><button type="button" class="ghost" id="mtZero">Mettre les salaires à zéro</button><button type="button" class="ghost" id="mtRest">Rétablir les salaires</button></div>
+          <p class="hint" id="mtState"></p>
         </div>
       </div>
       <div class="dcard" id="ppFund">
@@ -707,7 +709,7 @@ tr.subrow>td{padding:0 10px 12px 10px;text-align:left}
     </div>
   </section>
 </div>
-<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V91 · 12/11/2026 · Corriger un mois (avec « Tous les mois »); toucher un mois du résumé l'ouvre</p>
+<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V92 · 12/11/2026 · Corriger un mois : salaires à zéro, déplacer, supprimer (avec « Tous les mois »)</p>
 <div id="toast" class="toast" role="status" hidden></div>
 <div id="printReport" aria-hidden="true"></div>
 
@@ -2206,6 +2208,7 @@ function cleanPriv(o){
   return {
     exp:A(o.exp).slice(0,5000).map(function(x){ return {id:String(x&&x.id||uid()),d:isDay(x&&x.d)?x.d:todayIso(),cat:String(x&&x.cat||'Autres').slice(0,40),sub:String(x&&x.sub||'').slice(0,40),desc:String(x&&x.desc||'').slice(0,120),a:money(x&&x.a)}; }).filter(function(x){return x.a>0;}),
     staff:A(o.staff).slice(0,300).map(function(x){ return {id:String(x&&x.id||uid()),name:String(x&&x.name||'').slice(0,60),role:String(x&&x.role||'').slice(0,60),ph:String(x&&x.ph||'').slice(0,30),pay:money(x&&x.pay),off:!!(x&&x.off),hid:!!(x&&x.hid)}; }).filter(function(x){return x.name;}),
+    zm:A(o.zm).map(String).filter(function(x,i,a){ return /^\d{4}-\d{2}$/.test(x)&&a.indexOf(x)===i; }).slice(0,60),
     cats:A(o.cats).slice(0,60).map(function(c){ return String(c||'').replace(/\s+/g,' ').trim().slice(0,40); }).filter(function(c,i,a){ return c&&a.indexOf(c)===i; }),
     subs:(function(){ var r={}, t=(o.subs&&typeof o.subs==='object')?o.subs:{}; Object.keys(t).slice(0,80).forEach(function(k){ var l=A(t[k]).map(function(c){ return String(c||'').replace(/\s+/g,' ').trim().slice(0,40); }).filter(function(c,i,a){ return c&&a.indexOf(c)===i; }).slice(0,60); if(l.length) r[String(k).slice(0,40)]=l; }); return r; })(),
     tprof:(function(){ var r={}, t=(o.tprof&&typeof o.tprof==='object')?o.tprof:{}; Object.keys(t).slice(0,100).forEach(function(k){ var v=cleanProf(t[k],PF.teacher); if(Object.keys(v).length) r[String(k).slice(0,60)]=v; }); return r; })(),
@@ -2441,7 +2444,7 @@ function staffCards(list,empty){
 function paidFor(sid,m){ return sumA(priv.pay.filter(function(p){return p.sid===sid&&p.m===m;})); }
 function payRows(m,hid){
   return priv.staff.filter(function(s){ return !!s.hid===!!hid && (!s.off || paidFor(s.id,m)>0); }).map(function(s){
-    var due=s.off?0:s.pay, paid=paidFor(s.id,m); return {s:s,due:due,paid:paid,bal:Math.round((due-paid)*100)/100};
+    var due=(s.off||(!hid&&(priv.zm||[]).indexOf(m)>=0))?0:s.pay, paid=paidFor(s.id,m); return {s:s,due:due,paid:paid,bal:Math.round((due-paid)*100)/100};
   });
 }
 function renderPaieMain(){
@@ -2491,6 +2494,7 @@ function monthTools(){
   });
   if(fr._pm!==pm){ fr._pm=pm; fr._t=false; to._t=false; }
   if(!fr._t) fr.value=pm;
+  var zl=(priv.zm||[]).slice().sort().map(function(x){ return monthLabel(x+'-01'); }); var st=document.getElementById('mtState'); if(st) st.textContent=zl.length?('Salaires à zéro pour : '+zl.join(', ')+'.'):'Aucun mois n\'a les salaires à zéro.';
   if(!to._t){ var i=ms.indexOf(fr.value); to.value=(i>0?ms[i-1]:(ms[0]||fr.value)); }
 }
 function forMonths(){
@@ -3279,6 +3283,18 @@ $('#ppWipe').addEventListener('click',function(){
   if(!window.confirm('Supprimer TOUS les paiements ('+np+') de '+lbl+' ? Cette action est définitive. Les montants envoyés et la section privée ne sont pas touchés.')) return;
   priv.pay=priv.pay.filter(function(p){return !((all||p.m===m)&&!isHidPay(p));});
   pvc=null; pve=null; privSave(); renderPaie(); toast(np+' paiements supprimés ('+lbl+').');
+});
+function mtMonths(){ var v=$('#mtFrom').value; if(v!=='ALL') return [v]; return [].map.call($('#mtFrom').options,function(o){return o.value;}).filter(function(x){return x!=='ALL';}); }
+$('#mtZero').addEventListener('click',function(){
+  if(!canPriv()||!privReady) return;
+  var v=$('#mtFrom').value, ms=mtMonths(), lbl=v==='ALL'?'tous les mois':monthLabel(v+'-01');
+  if(!window.confirm('Mettre les salaires dus à zéro pour '+lbl+' ? Le mois affichera 0 de salaires et 0 de balance. Vous pourrez les rétablir. Les paiements, les montants envoyés et la section privée ne sont pas touchés.')) return;
+  priv.zm=(priv.zm||[]).filter(function(x){return ms.indexOf(x)<0;}).concat(ms); privSave(); renderPaie(); toast('Salaires à zéro : '+lbl+'.');
+});
+$('#mtRest').addEventListener('click',function(){
+  if(!canPriv()||!privReady) return;
+  var v=$('#mtFrom').value, ms=mtMonths(), lbl=v==='ALL'?'tous les mois':monthLabel(v+'-01');
+  priv.zm=(priv.zm||[]).filter(function(x){return ms.indexOf(x)<0;}); privSave(); renderPaie(); toast('Salaires rétablis : '+lbl+'.');
 });
 $('#mtMove').addEventListener('click',function(){
   if(!canPriv()||!privReady) return;
