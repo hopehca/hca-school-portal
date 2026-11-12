@@ -550,6 +550,7 @@ tr.subrow>td{padding:0 10px 12px 10px;text-align:left}
         <div class="tablewrap" style="display:none"><table><thead><tr><th scope="col" class="tl">Date</th><th scope="col" class="tl">Employé(e)</th><th scope="col">Montant</th><th scope="col">Cumul</th><th scope="col"></th></tr></thead><tbody id="ppHist"></tbody></table></div>
         <div id="ppYrBox" hidden><h2 style="font-size:1rem" id="ppYrT"></h2><div class="tablewrap"><table><thead><tr><th scope="col" class="tl">Mois</th><th scope="col">Salaire</th><th scope="col">Payé</th><th scope="col">Balance</th></tr></thead><tbody id="ppYr"></tbody></table></div></div>
         <div class="drow"><button type="button" class="btn" id="ppPdf">Rapport de paie (PDF)</button><button type="button" class="ghost" id="ppCsv">Paie en tableau (Excel)</button></div>
+        <div class="drow"><button type="button" class="ghost" id="ppWipe">Vider la paie de ce mois…</button></div>
       </div>
       <div class="dcard" id="ppFund">
         <h2>Résumé du mois : envoyé, utilisé, reste</h2>
@@ -699,7 +700,7 @@ tr.subrow>td{padding:0 10px 12px 10px;text-align:left}
     </div>
   </section>
 </div>
-<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V86 · 12/11/2026 · bouton Imprimer la liste de présence au bas de chaque classe</p>
+<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V87 · 12/11/2026 · rapport de paie : mois travaillé clair; Vider la paie d'un mois; Paie s'ouvre sur le dernier mois payé</p>
 <div id="toast" class="toast" role="status" hidden></div>
 <div id="printReport" aria-hidden="true"></div>
 
@@ -2438,6 +2439,7 @@ function payRows(m,hid){
 }
 function renderPaieMain(){
   fillMonths($('#ppMon'),false,priv.pay.map(function(x){return x.m;}));
+  if(privReady&&!window._ppInit){ window._ppInit=true; var lsm=priv.pay.map(function(x){return x.m;}).filter(Boolean).sort(); if(lsm.length){ $('#ppMon').value=lsm[lsm.length-1]; } }
   var m=$('#ppMon').value;
   if(!$('#ppDate').value) $('#ppDate').value=todayIso();
   var dis=!canPriv()?' disabled':'';
@@ -2589,10 +2591,10 @@ $('#ppCsv').addEventListener('click',function(){
 });
 $('#ppPdf').addEventListener('click',function(){
   var m=$('#ppMon').value, rows=payRows(m), view=$('#ppView').value;
-  var o=newPdf('Rapport de paie',monthLabel(m+'-01')); if(!o){ pdfNoLib(); return; }
+  var o=newPdf('Rapport de paie','Mois travaillé : '+monthLabel(m+'-01')); if(!o){ pdfNoLib(); return; }
   var d=o.doc, M=o.M, CW=o.PW-2*M, cw=[CW-84-3*76,84,76,76,76], xd=M+cw[0], xr=[xd+cw[1]+cw[2]-8,xd+cw[1]+cw[2]+cw[3]-8,M+CW-8];
   function head(){ d.setFillColor(23,64,139); d.rect(M,o.y,CW,22,'F'); d.setFont('helvetica','bold'); d.setFontSize(10); d.setTextColor(255,255,255);
-    d.text('Employé(e)',M+8,o.y+15); d.text('Date',xd+4,o.y+15); d.text('Salaire',xr[0],o.y+15,{align:'right'}); d.text('Payé',xr[1],o.y+15,{align:'right'}); d.text('Balance',xr[2],o.y+15,{align:'right'}); o.y+=22; }
+    d.text('Employé(e)',M+8,o.y+15); d.text('Payé le',xd+4,o.y+15); d.text('Salaire',xr[0],o.y+15,{align:'right'}); d.text('Payé',xr[1],o.y+15,{align:'right'}); d.text('Balance',xr[2],o.y+15,{align:'right'}); o.y+=22; }
   head(); var TD=0,TP=0;
   rows.forEach(function(r){
     var lines=d.splitTextToSize(pdfTxt(r.s.name+(r.s.role?' - '+r.s.role:'')),cw[0]-12).slice(0,2), rh=lines.length>1?32:22;
@@ -2604,7 +2606,7 @@ $('#ppPdf').addEventListener('click',function(){
     d.setFontSize(9); d.text(dt,xd+4,my); d.setFontSize(10);
     d.text(pdfMoney(r.due),xr[0],my,{align:'right'}); d.text(pdfMoney(r.paid),xr[1],my,{align:'right'});
     d.setFont('helvetica','bold'); d.text(pdfMoney(r.bal),xr[2],my,{align:'right'}); d.setDrawColor(226,231,240); d.line(M,o.y+rh,M+CW,o.y+rh); o.y+=rh; });
-  pdfNeed(o,40); o.y+=6; d.setFont('helvetica','bold'); d.setFontSize(11); d.setTextColor(17,27,46); d.text('TOTAL',M+8,o.y+14);
+  pdfNeed(o,40); o.y+=6; d.setFont('helvetica','bold'); d.setFontSize(9.5); d.setTextColor(17,27,46); d.text('TOTAL',M+8,o.y+14);
   d.text(pdfMoney(TD),xr[0],o.y+14,{align:'right'}); d.text(pdfMoney(TP),xr[1],o.y+14,{align:'right'}); d.text(pdfMoney(Math.round((TD-TP)*100)/100),xr[2],o.y+14,{align:'right'}); o.y+=30;
   if(view){
     var hp=priv.pay.filter(function(p){return p.m===m&&!isHidPay(p)&&p.sid===view;}).sort(function(a,b){return a.d.localeCompare(b.d);}), run=0;
@@ -3247,6 +3249,15 @@ $('#pdf').addEventListener('click',function(){
 $('#btnPrintList').addEventListener('click',function(){
   var sc=cur.scope; cur.scope='one';
   try{ $('#pdf').click(); } finally { cur.scope=sc; }
+});
+
+$('#ppWipe').addEventListener('click',function(){
+  if(!canPriv()||!privReady) return;
+  var m=$('#ppMon').value, np=priv.pay.filter(function(p){return p.m===m&&!isHidPay(p);}).length, nf=priv.fund.filter(function(f){return f.m===m;}).length;
+  if(!np&&!nf){ toast('Rien à supprimer pour '+monthLabel(m+'-01')+'.'); return; }
+  if(!window.confirm('Supprimer TOUS les paiements ('+np+') et les montants envoyés ('+nf+') du mois de '+monthLabel(m+'-01')+' ? Cette action est définitive. La section privée n\'est pas touchée.')) return;
+  priv.pay=priv.pay.filter(function(p){return !(p.m===m&&!isHidPay(p));}); priv.fund=priv.fund.filter(function(f){return f.m!==m;});
+  pvc=null; pve=null; fve=null; privSave(); renderPaie(); toast('Paie de '+monthLabel(m+'-01')+' vidée.');
 });
 
 /* ---------- Démarrage ---------- */
