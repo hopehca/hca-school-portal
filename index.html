@@ -688,7 +688,7 @@ section[id^="v-"] h2{color:var(--accent)}
     </div>
   </section>
 </div>
-<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V80 · 11/11/2026 · Modifier un paiement : choix du mois, rapport de paie sur une page</p>
+<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V81 · 11/11/2026 · Modifier paiements et montants envoyés : choix du mois; rapport de paie sur une page</p>
 <div id="toast" class="toast" role="status" hidden></div>
 <div id="printReport" aria-hidden="true"></div>
 
@@ -2408,7 +2408,7 @@ function staffOf(id){ return priv.staff.filter(function(s){return s.id===id;})[0
 function isHidPay(p){ var s=staffOf(p.sid); return !!(s&&s.hid); }
 function usedIn(m){ return sumA(priv.pay.filter(function(p){return p.m===m;})); }
 function sentIn(m){ return sumA(priv.fund.filter(function(f){return f.m===m;})); }
-var stOpen={}, pve=null;
+var stOpen={}, pve=null, fve=null;
 function staffCards(list,empty){
   return list.length?list.map(function(s){
     return '<details class="rcard" data-st="'+esc(s.id)+'"'+(stOpen[s.id]?' open':'')+'><summary><b>'+esc(s.name)+'</b>'+(s.role?' <span class="hint">· '+esc(s.role)+'</span>':'')+(s.off?' <span class="hint">(ancien)</span>':'')+'</summary><div class="rbody"><div class="rgrid">'
@@ -2641,7 +2641,10 @@ function renderFunds(){
   setH($('#fdTot'),'<div><b>'+fmt(sent)+'</b><span>Envoyé</span></div><div><b>'+fmt(used)+'</b><span>Utilisé</span></div><div class="bal '+(left<0?'due':'ok')+'"><b>'+fmt(left)+'</b><span>Reste</span></div>');
   var fl=priv.fund.filter(function(f){return f.m===m;}).sort(function(a,b){return a.d.localeCompare(b.d);});
   setH($('#fdRows'),fl.length?fl.map(function(f){
-    return '<tr><td class="tl">'+esc(shortDate(f.d))+(f.n?'<br><span class="hint">'+esc(f.n)+'</span>':'')+'</td><td class="n">'+fmt(f.a)+'</td><td>'+(pvc===f.id?'<button type="button" class="rm" data-fd="yes" data-id="'+esc(f.id)+'">Oui</button> <button type="button" class="ghost sm" data-fd="no">Non</button>':'<button type="button" class="ghost sm" data-fd="del" data-id="'+esc(f.id)+'">Retirer</button>')+'</td></tr>';
+    if(fve===f.id){
+      return '<tr data-fe-row="'+esc(f.id)+'"><td class="tl"><input type="date" data-fe="d" value="'+esc(f.d)+'" style="width:100%"><br><input type="text" data-fe="n" maxlength="80" placeholder="Note" value="'+esc(f.n||'')+'" style="width:100%;margin-top:4px"><br><span class="hint">Mois</span><br><select data-fe="m" style="width:100%">'+schoolMonths(priv.fund.map(function(x){return x.m;}).concat(priv.pay.map(function(x){return x.m;}))).map(function(mm){ return '<option value="'+esc(mm)+'"'+(mm===f.m?' selected':'')+'>'+esc(monthLabel(mm+'-01'))+'</option>'; }).join('')+'</select></td><td class="n"><input type="number" inputmode="decimal" min="0" step="0.01" data-fe="a" value="'+f.a+'" style="width:100%"></td><td><button type="button" class="btn sm" data-fd="esave" data-id="'+esc(f.id)+'">Enregistrer</button> <button type="button" class="ghost sm" data-fd="ecancel">Annuler</button></td></tr>';
+    }
+    return '<tr><td class="tl">'+esc(shortDate(f.d))+(f.n?'<br><span class="hint">'+esc(f.n)+'</span>':'')+'</td><td class="n">'+fmt(f.a)+'</td><td>'+(pvc===f.id?'<button type="button" class="rm" data-fd="yes" data-id="'+esc(f.id)+'">Oui</button> <button type="button" class="ghost sm" data-fd="no">Non</button>':'<button type="button" class="ghost sm" data-fd="edit" data-id="'+esc(f.id)+'">Modifier</button> <button type="button" class="ghost sm" data-fd="del" data-id="'+esc(f.id)+'">Retirer</button>')+'</td></tr>';
   }).join('')+'<tr class="mhead"><th scope="row" class="tl">Total envoyé - '+esc(monthLabel(m+'-01'))+'</th><th class="n">'+fmt(sent)+'</th><th></th></tr>':'<tr><td class="tl hint" colspan="3">Aucun montant envoyé ce mois-ci.</td></tr>');
   var ms=schoolMonths(priv.pay.map(function(x){return x.m;}).concat(priv.fund.map(function(x){return x.m;}))), TS=0, TU=0;
   setH($('#fdYr'),ms.map(function(mm){ var se=sentIn(mm), us=usedIn(mm); TS+=se; TU+=us;
@@ -2657,6 +2660,16 @@ $('#fdForm').addEventListener('submit',function(e){
 });
 $('#fdRows').addEventListener('click',function(e){
   var b=e.target.closest('button[data-fd]'); if(!b||!canPriv()) return;
+  if(b.dataset.fd==='edit'){ fve=b.dataset.id; pvc=null; renderPaie(); return; }
+  if(b.dataset.fd==='ecancel'){ fve=null; renderPaie(); return; }
+  if(b.dataset.fd==='esave'){
+    var fr=b.closest('tr'), ff=priv.fund.filter(function(x){return x.id===b.dataset.id;})[0]; if(!fr||!ff) return;
+    var fa=money(fr.querySelector('[data-fe="a"]').value), fd2=fr.querySelector('[data-fe="d"]').value||ff.d, fn=fr.querySelector('[data-fe="n"]').value.trim().replace(/\s+/g,' ').slice(0,80), fm=(fr.querySelector('[data-fe="m"]')||{}).value||ff.m;
+    if(fa<=0){ toast('Entrez un montant supérieur à 0.'); return; }
+    var fmoved=fm!==ff.m; ff.a=fa; ff.d=fd2; ff.n=fn; ff.m=fm; fve=null;
+    if(fmoved){ try{ $('#ppMon').value=fm; }catch(_){} }
+    privSave(); renderPaie(); toast(fmoved?('Montant déplacé vers '+monthLabel(fm+'-01')+'.'):'Montant modifié.'); return;
+  }
   if(b.dataset.fd==='del') pvc=b.dataset.id; else if(b.dataset.fd==='no') pvc=null;
   else if(b.dataset.fd==='yes'){ priv.fund=priv.fund.filter(function(x){return x.id!==b.dataset.id;}); pvc=null; privSave(); toast('Montant retiré.'); }
   renderPaie();
