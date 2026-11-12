@@ -368,6 +368,7 @@ tr.subrow>td{padding:0 10px 12px 10px;text-align:left}
           <div class="panel-actions">
             <button type="button" id="btnRest" class="ghost">Marquer le reste présent</button>
             <button type="button" id="btnEdit" class="ghost" aria-pressed="false">Modifier les noms</button>
+            <button type="button" id="btnPrintList" class="btn">Imprimer la liste (PDF)</button>
           </div>
         </div>
         <label class="lbl teacher" for="clsTeacherIn">Professeur(e) de la classe
@@ -698,7 +699,7 @@ tr.subrow>td{padding:0 10px 12px 10px;text-align:left}
     </div>
   </section>
 </div>
-<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V84 · 11/11/2026 · Paie simplifiée : un nom, ses paiements, Payer (montant + date) ou Modifier</p>
+<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V85 · 12/11/2026 · bouton Imprimer la liste (PDF) sur la page de la classe; Paie simplifiée</p>
 <div id="toast" class="toast" role="status" hidden></div>
 <div id="printReport" aria-hidden="true"></div>
 
@@ -3241,6 +3242,11 @@ $('#pdf').addEventListener('click',function(){
       toast("Le PDF n'a pas pu être enregistré. Copiez le texte à la place.");
     });
   });
+});
+
+$('#btnPrintList').addEventListener('click',function(){
+  var sc=cur.scope; cur.scope='one';
+  try{ $('#pdf').click(); } finally { cur.scope=sc; }
 });
 
 /* ---------- Démarrage ---------- */
