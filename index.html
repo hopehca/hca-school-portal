@@ -550,7 +550,13 @@ tr.subrow>td{padding:0 10px 12px 10px;text-align:left}
         <div class="tablewrap" style="display:none"><table><thead><tr><th scope="col" class="tl">Date</th><th scope="col" class="tl">Employé(e)</th><th scope="col">Montant</th><th scope="col">Cumul</th><th scope="col"></th></tr></thead><tbody id="ppHist"></tbody></table></div>
         <div id="ppYrBox" hidden><h2 style="font-size:1rem" id="ppYrT"></h2><div class="tablewrap"><table><thead><tr><th scope="col" class="tl">Mois</th><th scope="col">Salaire</th><th scope="col">Payé</th><th scope="col">Balance</th></tr></thead><tbody id="ppYr"></tbody></table></div></div>
         <div class="drow"><button type="button" class="btn" id="ppPdf">Rapport de paie (PDF)</button><button type="button" class="ghost" id="ppCsv">Paie en tableau (Excel)</button></div>
-        <div class="drow"><button type="button" class="ghost" id="ppWipe">Supprimer les paiements de ce mois…</button></div>
+        <div class="dcard" style="margin:10px 0 0" id="ppTools">
+          <h2 style="font-size:1rem;margin-top:0">Corriger un mois</h2>
+          <p class="hint">Choisissez le mois ici. Seuls les paiements sont touchés : les montants envoyés et la section privée ne changent pas.</p>
+          <label class="lbl" for="mtFrom">Mois à corriger<select id="mtFrom" class="drow"></select></label>
+          <label class="lbl" for="mtTo">Déplacer ses paiements vers<select id="mtTo" class="drow"></select></label>
+          <div class="drow"><button type="button" class="btn" id="mtMove">Déplacer les paiements</button><button type="button" class="ghost" id="ppWipe">Supprimer les paiements du mois à corriger…</button></div>
+        </div>
       </div>
       <div class="dcard" id="ppFund">
         <h2>Résumé du mois : envoyé, utilisé, reste</h2>
@@ -566,6 +572,7 @@ tr.subrow>td{padding:0 10px 12px 10px;text-align:left}
         </form>
         <div class="tablewrap"><table><thead><tr><th scope="col" class="tl">Date</th><th scope="col">Montant</th><th scope="col"></th></tr></thead><tbody id="fdRows"></tbody></table></div>
         <h2 style="font-size:1rem">Mois par mois</h2>
+        <p class="hint">Ce tableau est un résumé. Touchez un mois pour l'ouvrir : vous pourrez alors modifier ou supprimer ses paiements sous chaque employé(e), et ses montants envoyés plus haut.</p>
         <div class="tablewrap"><table><thead><tr><th scope="col" class="tl">Mois</th><th scope="col">Envoyé</th><th scope="col">Utilisé</th><th scope="col">Reste</th></tr></thead><tbody id="fdYr"></tbody></table></div>
       </div>
       <details class="dcard" id="ppPriv">
@@ -700,7 +707,7 @@ tr.subrow>td{padding:0 10px 12px 10px;text-align:left}
     </div>
   </section>
 </div>
-<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V88 · 12/11/2026 · rapport de paie : mois travaillé clair; supprimer les paiements d'un mois (sans toucher à l'argent envoyé); Paie s'ouvre sur le dernier mois payé</p>
+<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V90 · 12/11/2026 · Corriger un mois; toucher un mois du résumé l'ouvre</p>
 <div id="toast" class="toast" role="status" hidden></div>
 <div id="printReport" aria-hidden="true"></div>
 
@@ -2473,6 +2480,18 @@ $('#stForm').addEventListener('submit',function(e){
   $('#stName').value=''; $('#stRole').value=''; $('#stPay').value=''; $('#stPh').value=''; $('#stAdd').open=false; privSave(); renderPaie(); toast('Employé(e) ajouté(e).');
 });
 function mOf(id){ var el=$(id), r=(el&&el.value)||$('#ppMon').value; try{ $('#ppMon').value=r; }catch(_){} return r; }
+function monthTools(){
+  var fr=document.getElementById('mtFrom'), to=document.getElementById('mtTo'); if(!fr||!to) return;
+  var ms=schoolMonths(priv.pay.map(function(x){return x.m;}).concat(priv.fund.map(function(x){return x.m;}))), h=ms.map(function(mm){ return '<option value="'+mm+'">'+esc(monthLabel(mm+'-01'))+'</option>'; }).join('');
+  var pm=$('#ppMon').value;
+  [fr,to].forEach(function(sel){
+    if(sel._h!==h){ sel._h=h; var keep=sel.value; sel.innerHTML=h; if(keep) sel.value=keep; }
+    if(!sel._bound){ sel._bound=true; sel.addEventListener('change',function(){ sel._t=true; }); }
+  });
+  if(fr._pm!==pm){ fr._pm=pm; fr._t=false; to._t=false; }
+  if(!fr._t) fr.value=pm;
+  if(!to._t){ var i=ms.indexOf(fr.value); to.value=(i>0?ms[i-1]:fr.value); }
+}
 function forMonths(){
   var pm=$('#ppMon').value;
   ['ppForM','hpForM','fdForM'].forEach(function(id){
@@ -2621,7 +2640,7 @@ $('#ppPdf').addEventListener('click',function(){
 
 var addInit={st:false,hs:false};
 function renderPaie(){
-  renderPaieMain(); renderHid(); renderFunds(); forMonths();
+  renderPaieMain(); renderHid(); renderFunds(); forMonths(); monthTools();
   if(!addInit.st&&privReady){ addInit.st=true; $('#stAdd').open=!priv.staff.some(function(s){return !s.hid;}); }
   if(!addInit.hs&&privReady){ addInit.hs=true; $('#hsAdd').open=!priv.staff.some(function(s){return !!s.hid;}); }
 }
@@ -2692,7 +2711,7 @@ function renderFunds(){
   }).join('')+'<tr class="mhead"><th scope="row" class="tl">Total envoyé - '+esc(monthLabel(m+'-01'))+'</th><th class="n">'+fmt(sent)+'</th><th></th></tr>':'<tr><td class="tl hint" colspan="3">Aucun montant envoyé ce mois-ci.</td></tr>');
   var ms=schoolMonths(priv.pay.map(function(x){return x.m;}).concat(priv.fund.map(function(x){return x.m;}))), TS=0, TU=0;
   setH($('#fdYr'),ms.map(function(mm){ var se=sentIn(mm), us=usedIn(mm); TS+=se; TU+=us;
-    return '<tr><td class="tl">'+esc(monthLabel(mm+'-01'))+'</td><td class="n">'+fmt(se)+'</td><td class="n">'+fmt(us)+'</td><td class="n">'+fmt(Math.round((se-us)*100)/100)+'</td></tr>';
+    return '<tr data-mm="'+esc(mm)+'" style="cursor:pointer"><td class="tl"><button type="button" class="ghost sm" data-open="'+esc(mm)+'">'+esc(monthLabel(mm+'-01'))+' · ouvrir</button></td><td class="n">'+fmt(se)+'</td><td class="n">'+fmt(us)+'</td><td class="n">'+fmt(Math.round((se-us)*100)/100)+'</td></tr>';
   }).join('')+'<tr class="mhead"><th scope="row" class="tl">Total de l\'année</th><th class="n">'+fmt(Math.round(TS*100)/100)+'</th><th class="n">'+fmt(Math.round(TU*100)/100)+'</th><th class="n">'+fmt(Math.round((TS-TU)*100)/100)+'</th></tr>');
 }
 $('#fdForm').addEventListener('submit',function(e){
@@ -3253,11 +3272,29 @@ $('#btnPrintList').addEventListener('click',function(){
 
 $('#ppWipe').addEventListener('click',function(){
   if(!canPriv()||!privReady) return;
-  var m=$('#ppMon').value, np=priv.pay.filter(function(p){return p.m===m&&!isHidPay(p);}).length;
+  var m=$('#mtFrom').value, np=priv.pay.filter(function(p){return p.m===m&&!isHidPay(p);}).length;
   if(!np){ toast('Aucun paiement à supprimer pour '+monthLabel(m+'-01')+'.'); return; }
   if(!window.confirm('Supprimer TOUS les paiements ('+np+') du mois de '+monthLabel(m+'-01')+' ? Cette action est définitive. Les montants envoyés et la section privée ne sont pas touchés.')) return;
   priv.pay=priv.pay.filter(function(p){return !(p.m===m&&!isHidPay(p));});
   pvc=null; pve=null; privSave(); renderPaie(); toast('Paiements de '+monthLabel(m+'-01')+' supprimés.');
+});
+$('#mtMove').addEventListener('click',function(){
+  if(!canPriv()||!privReady) return;
+  var f=$('#mtFrom').value, t=$('#mtTo').value;
+  if(f===t){ toast('Choisissez un autre mois pour le déplacement.'); return; }
+  var list=priv.pay.filter(function(p){return p.m===f&&!isHidPay(p);});
+  if(!list.length){ toast('Aucun paiement à déplacer pour '+monthLabel(f+'-01')+'.'); return; }
+  if(!window.confirm('Déplacer les '+list.length+' paiements de '+monthLabel(f+'-01')+' vers '+monthLabel(t+'-01')+' ? Les dates des paiements ne changent pas. Les montants envoyés et la section privée ne sont pas touchés.')) return;
+  list.forEach(function(p){ p.m=t; });
+  pvc=null; pve=null; try{ $('#ppMon').value=t; }catch(_){} privSave(); renderPaie(); toast(list.length+' paiements déplacés vers '+monthLabel(t+'-01')+'.');
+});
+
+$('#fdYr').addEventListener('click',function(e){
+  var r=e.target.closest('tr[data-mm]'); if(!r) return;
+  try{ $('#ppMon').value=r.dataset.mm; }catch(_){}
+  renderPaie();
+  var t=$('#ppPay'); if(t&&t.scrollIntoView) t.scrollIntoView({behavior:'smooth',block:'start'});
+  toast(monthLabel(r.dataset.mm+'-01')+' ouvert.');
 });
 
 /* ---------- Démarrage ---------- */
