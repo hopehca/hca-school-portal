@@ -552,7 +552,8 @@ tr.subrow>td{padding:0 10px 12px 10px;text-align:left}
         <div class="drow"><button type="button" class="btn" id="ppPdf">Rapport de paie (PDF)</button><button type="button" class="ghost" id="ppCsv">Paie en tableau (Excel)</button></div>
         <div class="dcard" style="margin:10px 0 0" id="ppTools">
           <h2 style="font-size:1rem;margin-top:0">Corriger un mois</h2>
-          <p class="hint">Choisissez le mois ici. Seuls les paiements sont touchés : les montants envoyés et la section privée ne changent pas.</p>
+          <p class="hint">Choisissez le mois ici. Seuls les paiements sont touchés : les montants envoyés ne changent jamais.</p>
+          <label class="lbl"><input type="checkbox" id="mtPriv"> Inclure aussi les paiements de la section privée</label>
           <label class="lbl" for="mtFrom">Mois à corriger<select id="mtFrom" class="drow"></select></label>
           <label class="lbl" for="mtTo">Déplacer ses paiements vers<select id="mtTo" class="drow"></select></label>
           <div class="drow"><button type="button" class="btn" id="mtMove">Déplacer les paiements</button><button type="button" class="ghost" id="ppWipe">Supprimer les paiements du mois à corriger…</button></div>
@@ -709,7 +710,7 @@ tr.subrow>td{padding:0 10px 12px 10px;text-align:left}
     </div>
   </section>
 </div>
-<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V92 · 12/11/2026 · Corriger un mois : salaires à zéro, déplacer, supprimer (avec « Tous les mois »)</p>
+<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V93 · 12/11/2026 · Corriger un mois : salaires à zéro, déplacer, supprimer, avec option section privée</p>
 <div id="toast" class="toast" role="status" hidden></div>
 <div id="printReport" aria-hidden="true"></div>
 
@@ -3278,10 +3279,10 @@ $('#btnPrintList').addEventListener('click',function(){
 $('#ppWipe').addEventListener('click',function(){
   if(!canPriv()||!privReady) return;
   var m=$('#mtFrom').value, all=(m==='ALL'), lbl=all?'tous les mois':'le mois de '+monthLabel(m+'-01');
-  var np=priv.pay.filter(function(p){return (all||p.m===m)&&!isHidPay(p);}).length;
+  var ip=$('#mtPriv').checked, np=priv.pay.filter(function(p){return (all||p.m===m)&&(ip||!isHidPay(p));}).length;
   if(!np){ toast('Aucun paiement à supprimer ('+lbl+').'); return; }
-  if(!window.confirm('Supprimer TOUS les paiements ('+np+') de '+lbl+' ? Cette action est définitive. Les montants envoyés et la section privée ne sont pas touchés.')) return;
-  priv.pay=priv.pay.filter(function(p){return !((all||p.m===m)&&!isHidPay(p));});
+  if(!window.confirm('Supprimer TOUS les paiements ('+np+') de '+lbl+' ? Cette action est définitive. Les montants envoyés ne sont pas touchés'+(ip?'.':' ni la section privée.'))) return;
+  priv.pay=priv.pay.filter(function(p){return !((all||p.m===m)&&(ip||!isHidPay(p)));});
   pvc=null; pve=null; privSave(); renderPaie(); toast(np+' paiements supprimés ('+lbl+').');
 });
 function mtMonths(){ var v=$('#mtFrom').value; if(v!=='ALL') return [v]; return [].map.call($('#mtFrom').options,function(o){return o.value;}).filter(function(x){return x!=='ALL';}); }
@@ -3301,9 +3302,9 @@ $('#mtMove').addEventListener('click',function(){
   var f=$('#mtFrom').value, t=$('#mtTo').value;
   if(f==='ALL'){ toast('Choisissez un mois précis pour le déplacement.'); return; }
   if(f===t){ toast('Choisissez un autre mois pour le déplacement.'); return; }
-  var list=priv.pay.filter(function(p){return p.m===f&&!isHidPay(p);});
+  var ip=$('#mtPriv').checked, list=priv.pay.filter(function(p){return p.m===f&&(ip||!isHidPay(p));});
   if(!list.length){ toast('Aucun paiement à déplacer pour '+monthLabel(f+'-01')+'.'); return; }
-  if(!window.confirm('Déplacer les '+list.length+' paiements de '+monthLabel(f+'-01')+' vers '+monthLabel(t+'-01')+' ? Les dates des paiements ne changent pas. Les montants envoyés et la section privée ne sont pas touchés.')) return;
+  if(!window.confirm('Déplacer les '+list.length+' paiements de '+monthLabel(f+'-01')+' vers '+monthLabel(t+'-01')+' ? Les dates des paiements ne changent pas. Les montants envoyés ne sont pas touchés'+(ip?'.':' ni la section privée.'))) return;
   list.forEach(function(p){ p.m=t; });
   pvc=null; pve=null; try{ $('#ppMon').value=t; }catch(_){} privSave(); renderPaie(); toast(list.length+' paiements déplacés vers '+monthLabel(t+'-01')+'.');
 });
