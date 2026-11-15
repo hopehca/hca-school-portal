@@ -559,6 +559,7 @@ tr.subrow>td{padding:0 10px 12px 10px;text-align:left}
           <div class="drow"><button type="button" class="btn" id="mtMove">Déplacer les paiements</button><button type="button" class="ghost" id="ppWipe">Supprimer les paiements du mois à corriger…</button></div>
           <div class="drow"><button type="button" class="ghost" id="mtZero">Mettre les salaires à zéro</button><button type="button" class="ghost" id="mtRest">Rétablir les salaires</button></div>
           <p class="hint" id="mtState"></p>
+          <div id="mtAsk" class="payln" style="display:none;flex-direction:column;align-items:stretch" role="alert"></div>
         </div>
       </div>
       <div class="dcard" id="ppFund">
@@ -710,7 +711,7 @@ tr.subrow>td{padding:0 10px 12px 10px;text-align:left}
     </div>
   </section>
 </div>
-<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V93 · 12/11/2026 · Corriger un mois : salaires à zéro, déplacer, supprimer, avec option section privée</p>
+<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V94 · 15/11/2026 · Corriger un mois : confirmation dans la page (sans fenêtre du navigateur), montant affiché avant suppression</p>
 <div id="toast" class="toast" role="status" hidden></div>
 <div id="printReport" aria-hidden="true"></div>
 
@@ -3276,45 +3277,49 @@ $('#btnPrintList').addEventListener('click',function(){
   try{ $('#pdf').click(); } finally { cur.scope=sc; }
 });
 
-$('#ppWipe').addEventListener('click',function(){
-  if(!canPriv()||!privReady) return;
-  var m=$('#mtFrom').value, all=(m==='ALL'), lbl=all?'tous les mois':'le mois de '+monthLabel(m+'-01');
-  var ip=$('#mtPriv').checked, np=priv.pay.filter(function(p){return (all||p.m===m)&&(ip||!isHidPay(p));}).length;
-  if(!np){ toast('Aucun paiement à supprimer ('+lbl+').'); return; }
-  if(!window.confirm('Supprimer TOUS les paiements ('+np+') de '+lbl+' ? Cette action est définitive. Les montants envoyés ne sont pas touchés'+(ip?'.':' ni la section privée.'))) return;
-  priv.pay=priv.pay.filter(function(p){return !((all||p.m===m)&&(ip||!isHidPay(p)));});
-  pvc=null; pve=null; privSave(); renderPaie(); toast(np+' paiements supprimés ('+lbl+').');
+var mtFn=null;
+function mtShow(html,fn){ mtFn=fn||null; var b=$('#mtAsk'); b.innerHTML=html; b.style.display=''; try{ b.scrollIntoView({block:'center'}); }catch(_){} }
+function mtAsk(text,fn){ mtShow('<div><b>'+esc(text)+'</b></div><div style="margin-top:8px"><button type="button" class="rm" data-mt="yes">Oui, confirmer</button> <button type="button" class="ghost sm" data-mt="no">Annuler</button></div>',fn); }
+$('#mtAsk').addEventListener('click',function(e){
+  var b=e.target.closest('button[data-mt]'); if(!b) return;
+  if(b.dataset.mt==='yes' && mtFn){ var f=mtFn; mtFn=null; f(); } else { mtFn=null; $('#mtAsk').style.display='none'; }
 });
+function mtDone(msg){ mtShow('<div><b>'+esc(msg)+'</b></div><div style="margin-top:8px"><button type="button" class="ghost sm" data-mt="no">Fermer</button></div>',null); toast(msg); }
 function mtMonths(){ var v=$('#mtFrom').value; if(v!=='ALL') return [v]; return [].map.call($('#mtFrom').options,function(o){return o.value;}).filter(function(x){return x!=='ALL';}); }
+function mtLbl(v){ return v==='ALL'?'tous les mois':'le mois de '+monthLabel(v+'-01'); }
+$('#ppWipe').addEventListener('click',function(){
+  if(!canPriv()||!privReady){ mtShow('<div><b>Action impossible : connectez-vous en super administrateur.</b></div>',null); return; }
+  var m=$('#mtFrom').value, all=(m==='ALL'), ip=$('#mtPriv').checked;
+  var list=priv.pay.filter(function(p){return (all||p.m===m)&&(ip||!isHidPay(p));}), np=list.length, tot=sumA(list);
+  if(!np){ mtShow('<div><b>Aucun paiement trouvé pour '+esc(mtLbl(m))+(ip?'':' (section privée non incluse : cochez la case pour l\'inclure)')+'.</b></div><div style="margin-top:8px"><button type="button" class="ghost sm" data-mt="no">Fermer</button></div>',null); return; }
+  mtAsk('Supprimer '+np+' paiement(s), '+fmt(tot)+' au total, de '+mtLbl(m)+' ? Définitif. Les montants envoyés ne sont pas touchés'+(ip?'.':' ni la section privée.'),function(){
+    priv.pay=priv.pay.filter(function(p){return !((all||p.m===m)&&(ip||!isHidPay(p)));});
+    pvc=null; pve=null; privSave(); renderPaie(); mtDone(np+' paiement(s) supprimé(s) ('+fmt(tot)+') pour '+mtLbl(m)+'.');
+  });
+});
 $('#mtZero').addEventListener('click',function(){
   if(!canPriv()||!privReady) return;
-  var v=$('#mtFrom').value, ms=mtMonths(), lbl=v==='ALL'?'tous les mois':monthLabel(v+'-01');
-  if(!window.confirm('Mettre les salaires dus à zéro pour '+lbl+' ? Le mois affichera 0 de salaires et 0 de balance. Vous pourrez les rétablir. Les paiements, les montants envoyés et la section privée ne sont pas touchés.')) return;
-  priv.zm=(priv.zm||[]).filter(function(x){return ms.indexOf(x)<0;}).concat(ms); privSave(); renderPaie(); toast('Salaires à zéro : '+lbl+'.');
+  var v=$('#mtFrom').value, ms=mtMonths();
+  mtAsk('Mettre les salaires dus à zéro pour '+mtLbl(v)+' ? Vous pourrez les rétablir. Les paiements, les montants envoyés et la section privée ne sont pas touchés.',function(){
+    priv.zm=(priv.zm||[]).filter(function(x){return ms.indexOf(x)<0;}).concat(ms); privSave(); renderPaie(); mtDone('Salaires à zéro : '+mtLbl(v)+'.');
+  });
 });
 $('#mtRest').addEventListener('click',function(){
   if(!canPriv()||!privReady) return;
-  var v=$('#mtFrom').value, ms=mtMonths(), lbl=v==='ALL'?'tous les mois':monthLabel(v+'-01');
-  priv.zm=(priv.zm||[]).filter(function(x){return ms.indexOf(x)<0;}); privSave(); renderPaie(); toast('Salaires rétablis : '+lbl+'.');
+  var v=$('#mtFrom').value, ms=mtMonths();
+  priv.zm=(priv.zm||[]).filter(function(x){return ms.indexOf(x)<0;}); privSave(); renderPaie(); mtDone('Salaires rétablis : '+mtLbl(v)+'.');
 });
 $('#mtMove').addEventListener('click',function(){
   if(!canPriv()||!privReady) return;
   var f=$('#mtFrom').value, t=$('#mtTo').value;
-  if(f==='ALL'){ toast('Choisissez un mois précis pour le déplacement.'); return; }
-  if(f===t){ toast('Choisissez un autre mois pour le déplacement.'); return; }
-  var ip=$('#mtPriv').checked, list=priv.pay.filter(function(p){return p.m===f&&(ip||!isHidPay(p));});
-  if(!list.length){ toast('Aucun paiement à déplacer pour '+monthLabel(f+'-01')+'.'); return; }
-  if(!window.confirm('Déplacer les '+list.length+' paiements de '+monthLabel(f+'-01')+' vers '+monthLabel(t+'-01')+' ? Les dates des paiements ne changent pas. Les montants envoyés ne sont pas touchés'+(ip?'.':' ni la section privée.'))) return;
-  list.forEach(function(p){ p.m=t; });
-  pvc=null; pve=null; try{ $('#ppMon').value=t; }catch(_){} privSave(); renderPaie(); toast(list.length+' paiements déplacés vers '+monthLabel(t+'-01')+'.');
-});
-
-$('#fdYr').addEventListener('click',function(e){
-  var r=e.target.closest('tr[data-mm]'); if(!r) return;
-  try{ $('#ppMon').value=r.dataset.mm; }catch(_){}
-  renderPaie();
-  var t=$('#ppPay'); if(t&&t.scrollIntoView) t.scrollIntoView({behavior:'smooth',block:'start'});
-  toast(monthLabel(r.dataset.mm+'-01')+' ouvert.');
+  if(f==='ALL'){ mtShow('<div><b>Choisissez un mois précis pour le déplacement.</b></div><div style="margin-top:8px"><button type="button" class="ghost sm" data-mt="no">Fermer</button></div>',null); return; }
+  if(f===t){ mtShow('<div><b>Choisissez un autre mois dans « Déplacer ses paiements vers ».</b></div><div style="margin-top:8px"><button type="button" class="ghost sm" data-mt="no">Fermer</button></div>',null); return; }
+  var ip=$('#mtPriv').checked, list=priv.pay.filter(function(p){return p.m===f&&(ip||!isHidPay(p));}), tot=sumA(list);
+  if(!list.length){ mtShow('<div><b>Aucun paiement trouvé pour '+esc(mtLbl(f))+(ip?'':' (section privée non incluse : cochez la case pour l\'inclure)')+'.</b></div><div style="margin-top:8px"><button type="button" class="ghost sm" data-mt="no">Fermer</button></div>',null); return; }
+  mtAsk('Déplacer '+list.length+' paiement(s), '+fmt(tot)+', de '+monthLabel(f+'-01')+' vers '+monthLabel(t+'-01')+' ? Les dates ne changent pas.',function(){
+    list.forEach(function(p){ p.m=t; });
+    pvc=null; pve=null; try{ $('#ppMon').value=t; }catch(_){} privSave(); renderPaie(); mtDone(list.length+' paiement(s) déplacé(s) vers '+monthLabel(t+'-01')+'.');
+  });
 });
 
 /* ---------- Démarrage ---------- */
