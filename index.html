@@ -565,6 +565,9 @@ tr.subrow>td{padding:0 10px 12px 10px;text-align:left}
       <div class="dcard" id="ppFund">
         <h2>Résumé du mois : envoyé, utilisé, reste</h2>
         <div class="fsum" id="fdTot"></div>
+        <h2 style="font-size:1rem;margin-top:14px">Paiements qui forment « Utilisé » ce mois-ci</h2>
+        <p class="hint">Chaque paiement du mois est ici, quel que soit l'employé(e), section privée comprise. Utilisez Retirer pour le supprimer ou Modifier pour changer son montant, sa date ou son mois.</p>
+        <div id="fdPays"></div>
         <p class="hint">Envoyé = l'argent que vous envoyez pour la paie. Utilisé = tous les paiements du mois, section privée comprise. Reste = envoyé moins utilisé. Le mois choisi plus haut s'applique ici.</p>
         <h2 style="font-size:1rem">Argent envoyé pour la paie</h2>
         <form class="fadd" id="fdForm" autocomplete="off">
@@ -711,7 +714,7 @@ tr.subrow>td{padding:0 10px 12px 10px;text-align:left}
     </div>
   </section>
 </div>
-<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V94 · 15/11/2026 · Corriger un mois : confirmation dans la page (sans fenêtre du navigateur), montant affiché avant suppression</p>
+<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V95 · 15/11/2026 · le résumé liste chaque paiement de « Utilisé » avec Retirer / Modifier</p>
 <div id="toast" class="toast" role="status" hidden></div>
 <div id="printReport" aria-hidden="true"></div>
 
@@ -2558,7 +2561,7 @@ function ppRowsClick(e){
   if(b.dataset.pp==='slip'){ slipPdf(s,m); return; }
   if(b.dataset.pp==='full'){ var bal=Math.round((s.pay-paidFor(s.id,m))*100)/100; if(bal>0){ priv.pay.push({id:uid(),sid:s.id,m:m,d:todayIso(),a:bal,n:'Salaire du mois',no:nextPayNo(todayIso())}); privSave(); renderPaie(); toast('Paiement enregistré.'); } }
 }
-$('#ppRows').addEventListener('click',ppRowsClick); $('#hpRows').addEventListener('click',ppRowsClick); $('#ppRows').addEventListener('click',ppHistClick);
+$('#ppRows').addEventListener('click',ppRowsClick); $('#hpRows').addEventListener('click',ppRowsClick); $('#ppRows').addEventListener('click',ppHistClick); $('#fdPays').addEventListener('click',ppHistClick);
 
 function payRcpBuild(p){
   var s=staffOf(p.sid); if(!s) return null;
@@ -2708,6 +2711,8 @@ function renderFunds(){
   var m=$('#ppMon').value;
   if(!$('#fdDate').value) $('#fdDate').value=todayIso();
   var sent=sentIn(m), used=usedIn(m), left=Math.round((sent-used)*100)/100;
+  var allp=priv.pay.filter(function(p){return p.m===m;}).sort(function(a,b){return a.d.localeCompare(b.d);});
+  setH($('#fdPays'),allp.length?allp.map(function(p){ var st=staffOf(p.sid), who=st?(st.name+(st.hid?' · section privée':'')):'Employé(e) introuvable (déjà retiré(e))'; return '<div style="font-weight:600;margin-top:8px">'+esc(who)+'</div>'+ppLineHtml(p); }).join(''):'<p class="hint">Aucun paiement enregistré pour ce mois.</p>');
   setH($('#fdTot'),'<div><b>'+fmt(sent)+'</b><span>Envoyé</span></div><div><b>'+fmt(used)+'</b><span>Utilisé</span></div><div class="bal '+(left<0?'due':'ok')+'"><b>'+fmt(left)+'</b><span>Reste</span></div>');
   var fl=priv.fund.filter(function(f){return f.m===m;}).sort(function(a,b){return a.d.localeCompare(b.d);});
   setH($('#fdRows'),fl.length?fl.map(function(f){
