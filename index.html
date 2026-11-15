@@ -536,11 +536,12 @@ tr.subrow>td{padding:0 10px 12px 10px;text-align:left}
         <h2>Paie du mois</h2>
         <label class="lbl" for="ppMon">Mois travaillé (la paie est pour ce mois)<select id="ppMon" class="drow"></select></label>
         <label class="lbl" for="rgDate">Date du paiement (pour les cases que vous cochez)<input id="rgDate" type="date"></label>
-        <p class="hint">Devise : <b id="rgCur"></b>. Cochez « Payé » sur la ligne de chaque personne. Le montant se modifie directement sur la ligne.</p>
+        <p class="hint">Devise : <b id="rgCur"></b>. Le salaire du mois se règle ici : taux pour tout le monde (ex. 50 % en cas de fermeture), puis modifiable ligne par ligne. Cochez « Payé » pour payer le reste dû. « + Avance » enregistre un prêt/avance.</p>
+        <div class="payln" id="rgRate"><span class="grow"><b>Taux du mois</b> (tous les salaires)</span><button type="button" class="ghost sm" data-rt="100">100 %</button><button type="button" class="ghost sm" data-rt="75">75 %</button><button type="button" class="ghost sm" data-rt="50">50 %</button><input type="number" inputmode="decimal" min="0" max="100" step="1" id="rgRateIn" style="width:80px" aria-label="Taux en pourcentage"> %</div>
         <label class="lbl" for="ppView" style="display:none">Affichage<select id="ppView" class="drow"></select></label>
         <div class="fsum" id="ppTot"></div>
         <div id="rgBar"></div>
-        <div class="tablewrap"><table><thead><tr><th scope="col">N°</th><th scope="col" class="tl">Enseignant(e) / Classe</th><th scope="col">Montant</th><th scope="col">Payé</th></tr></thead><tbody id="rgRows"></tbody></table></div>
+        <div class="tablewrap"><table><thead><tr><th scope="col">N°</th><th scope="col" class="tl">Enseignant(e) / Classe</th><th scope="col">Salaire dû</th><th scope="col">Payé</th></tr></thead><tbody id="rgRows"></tbody></table></div>
         <div class="drow"><button type="button" class="ghost" id="rgAll">Marquer tout le monde payé…</button><button type="button" class="btn" id="rgPdf">Registre de paie (PDF)</button></div>
         <div class="tablewrap" style="display:none"><table><thead><tr><th scope="col" class="tl">Employé(e)</th><th scope="col">Salaire</th><th scope="col">Payé</th><th scope="col">Balance</th><th scope="col"></th></tr></thead><tbody id="ppRows"></tbody></table></div>
         <h2 style="font-size:1rem;display:none">Enregistrer un paiement</h2>
@@ -719,7 +720,7 @@ tr.subrow>td{padding:0 10px 12px 10px;text-align:left}
     </div>
   </section>
 </div>
-<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V96 · 15/11/2026 · Paie en registre : une ligne par enseignant, case Payé, montant modifiable; Registre de paie (PDF) sans signature des employés</p>
+<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V97 · 15/11/2026 · Paie variable : taux du mois (ex. 50 %) et salaire modifiable par employé, avances/prêts, fiche individuelle à envoyer sur WhatsApp, mois travaillé indiqué sur tous les documents</p>
 <div id="toast" class="toast" role="status" hidden></div>
 <div id="printReport" aria-hidden="true"></div>
 
@@ -2218,11 +2219,13 @@ function cleanPriv(o){
   return {
     exp:A(o.exp).slice(0,5000).map(function(x){ return {id:String(x&&x.id||uid()),d:isDay(x&&x.d)?x.d:todayIso(),cat:String(x&&x.cat||'Autres').slice(0,40),sub:String(x&&x.sub||'').slice(0,40),desc:String(x&&x.desc||'').slice(0,120),a:money(x&&x.a)}; }).filter(function(x){return x.a>0;}),
     staff:A(o.staff).slice(0,300).map(function(x){ return {id:String(x&&x.id||uid()),name:String(x&&x.name||'').slice(0,60),role:String(x&&x.role||'').slice(0,60),ph:String(x&&x.ph||'').slice(0,30),pay:money(x&&x.pay),off:!!(x&&x.off),hid:!!(x&&x.hid)}; }).filter(function(x){return x.name;}),
+    rt:(function(){ var r={}, t=(o.rt&&typeof o.rt==='object')?o.rt:{}; Object.keys(t).slice(0,120).forEach(function(k){ var v=Number(t[k]); if(/^\d{4}-\d{2}$/.test(k)&&isFinite(v)&&v>=0&&v<100) r[k]=Math.round(v*100)/100; }); return r; })(),
+    ov:(function(){ var r={}, t=(o.ov&&typeof o.ov==='object')?o.ov:{}; Object.keys(t).slice(0,120).forEach(function(k){ var q=t[k]; if(!/^\d{4}-\d{2}$/.test(k)||!q||typeof q!=='object') return; var z={}, n=0; Object.keys(q).slice(0,300).forEach(function(sid){ var v=Number(q[sid]); if(isFinite(v)&&v>=0){ z[String(sid).slice(0,60)]=Math.round(v*100)/100; n++; } }); if(n) r[k]=z; }); return r; })(),
     zm:A(o.zm).map(String).filter(function(x,i,a){ return /^\d{4}-\d{2}$/.test(x)&&a.indexOf(x)===i; }).slice(0,60),
     cats:A(o.cats).slice(0,60).map(function(c){ return String(c||'').replace(/\s+/g,' ').trim().slice(0,40); }).filter(function(c,i,a){ return c&&a.indexOf(c)===i; }),
     subs:(function(){ var r={}, t=(o.subs&&typeof o.subs==='object')?o.subs:{}; Object.keys(t).slice(0,80).forEach(function(k){ var l=A(t[k]).map(function(c){ return String(c||'').replace(/\s+/g,' ').trim().slice(0,40); }).filter(function(c,i,a){ return c&&a.indexOf(c)===i; }).slice(0,60); if(l.length) r[String(k).slice(0,40)]=l; }); return r; })(),
     tprof:(function(){ var r={}, t=(o.tprof&&typeof o.tprof==='object')?o.tprof:{}; Object.keys(t).slice(0,100).forEach(function(k){ var v=cleanProf(t[k],PF.teacher); if(Object.keys(v).length) r[String(k).slice(0,60)]=v; }); return r; })(),
-    pay:A(o.pay).slice(0,10000).map(function(x){ return {id:String(x&&x.id||uid()),sid:String(x&&x.sid||''),m:/^\d{4}-\d{2}$/.test(String(x&&x.m))?x.m:todayIso().slice(0,7),d:isDay(x&&x.d)?x.d:todayIso(),a:money(x&&x.a),n:String(x&&x.n||'').slice(0,80),no:String(x&&x.no||'').slice(0,24),snt:String(x&&x.snt||'').slice(0,20)}; }).filter(function(x){return x.a>0&&x.sid;}),
+    pay:A(o.pay).slice(0,10000).map(function(x){ return {id:String(x&&x.id||uid()),sid:String(x&&x.sid||''),m:/^\d{4}-\d{2}$/.test(String(x&&x.m))?x.m:todayIso().slice(0,7),d:isDay(x&&x.d)?x.d:todayIso(),a:money(x&&x.a),n:String(x&&x.n||'').slice(0,80),no:String(x&&x.no||'').slice(0,24),snt:String(x&&x.snt||'').slice(0,20),k:(x&&x.k==='avance')?'avance':''}; }).filter(function(x){return x.a>0&&x.sid;}),
     fund:A(o.fund).slice(0,3000).map(function(x){ return {id:String(x&&x.id||uid()),m:/^\d{4}-\d{2}$/.test(String(x&&x.m))?x.m:todayIso().slice(0,7),d:isDay(x&&x.d)?x.d:todayIso(),a:money(x&&x.a),n:String(x&&x.n||'').slice(0,80)}; }).filter(function(x){return x.a>0;})
   };
 }
@@ -2452,9 +2455,15 @@ function staffCards(list,empty){
   }).join(''):'<p class="hint">'+empty+'</p>';
 }
 function paidFor(sid,m){ return sumA(priv.pay.filter(function(p){return p.sid===sid&&p.m===m;})); }
+function dueOf(s,m){
+  if(s.off||(!s.hid&&(priv.zm||[]).indexOf(m)>=0)) return 0;
+  var ov=(priv.ov||{})[m]; if(ov&&ov[s.id]!=null) return money(ov[s.id]);
+  var r=(priv.rt||{})[m]; if(r==null) r=100; return Math.round(s.pay*r)/100;
+}
+function payNote(p){ return p.k==='avance'?('Avance'+(p.n?' - '+p.n:'')):(p.n||''); }
 function payRows(m,hid){
   return priv.staff.filter(function(s){ return !!s.hid===!!hid && (!s.off || paidFor(s.id,m)>0); }).map(function(s){
-    var due=(s.off||(!hid&&(priv.zm||[]).indexOf(m)>=0))?0:s.pay, paid=paidFor(s.id,m); return {s:s,due:due,paid:paid,bal:Math.round((due-paid)*100)/100};
+    var due=dueOf(s,m), paid=paidFor(s.id,m); return {s:s,due:due,paid:paid,bal:Math.round((due-paid)*100)/100};
   });
 }
 function renderPaieMain(){
@@ -2535,8 +2544,8 @@ $('#ppForm').addEventListener('submit',function(e){
   priv.pay.push({id:uid(),sid:sid,m:mOf('#ppForM'),d:d,a:a,n:$('#ppNote').value.trim().replace(/\s+/g,' ').slice(0,80),no:nextPayNo(d)});
   $('#ppAmt').value=''; $('#ppNote').value=''; privSave(); renderPaie(); toast('Paiement enregistré.');
 });
-function slipPdf(s,m){
-  var o=newPdf('Fiche de paie',monthLabel(m+'-01')); if(!o){ pdfNoLib(); return; }
+function slipPdf(s,m,send){
+  var o=newPdf('Fiche de paie','Mois travaillé : '+monthLabel(m+'-01')); if(!o){ pdfNoLib(); return; }
   var d=o.doc, M=o.M, CW=o.PW-2*M, pays=priv.pay.filter(function(p){return p.sid===s.id&&p.m===m;}).sort(function(a,b){return a.d.localeCompare(b.d);});
   d.setFont('helvetica','normal'); d.setFontSize(10); d.setTextColor(110,120,140); d.text('Employé(e)',M,o.y+10);
   d.setFont('helvetica','bold'); d.setFontSize(14); d.setTextColor(17,27,46); d.text(d.splitTextToSize(pdfTxt(s.name),CW-40)[0],M,o.y+28); o.y+=38;
@@ -2545,15 +2554,25 @@ function slipPdf(s,m){
   d.text('Date du paiement',M+8,o.y+15); d.text('Note',M+170,o.y+15); d.text('Montant payé',M+CW-8,o.y+15,{align:'right'}); o.y+=22;
   if(!pays.length){ d.setFont('helvetica','normal'); d.setFontSize(10.5); d.setTextColor(110,120,140); d.text(pdfTxt('Aucun paiement ce mois-ci.'),M+8,o.y+16); o.y+=26; }
   pays.forEach(function(p){ pdfNeed(o,24); d.setFont('helvetica','normal'); d.setFontSize(10.5); d.setTextColor(17,27,46);
-    d.text(pdfTxt(shortDate(p.d)),M+8,o.y+15); d.text(d.splitTextToSize(pdfTxt(p.n||''),CW-170-150)[0]||'',M+170,o.y+15);
+    d.text(pdfTxt(shortDate(p.d)),M+8,o.y+15); d.text(d.splitTextToSize(pdfTxt(payNote(p)),CW-170-150)[0]||'',M+170,o.y+15);
     d.setFont('helvetica','bold'); d.text(pdfMoney(p.a),M+CW-8,o.y+15,{align:'right'}); d.setDrawColor(226,231,240); d.line(M,o.y+22,M+CW,o.y+22); o.y+=22; });
-  o.y+=12; pdfNeed(o,90);
-  var due=s.off?0:s.pay, paid=sumA(pays), bal=Math.round((due-paid)*100)/100;
+  o.y+=12; pdfNeed(o,150);
+  var due=dueOf(s,m), paid=sumA(pays), adv=sumA(pays.filter(function(p){return p.k==='avance';})), bal=Math.round((due-paid)*100)/100;
   function row(l,v,bold,col){ d.setFont('helvetica',bold?'bold':'normal'); d.setFontSize(11); d.setTextColor(75,88,114); d.text(pdfTxt(l),M+CW-250,o.y+10); d.setTextColor(col[0],col[1],col[2]); d.text(pdfTxt(v),M+CW-8,o.y+10,{align:'right'}); o.y+=20; }
-  row('Salaire du mois',pdfMoney(due),false,[17,27,46]); row('Total payé',pdfMoney(paid),true,[17,27,46]); row('Balance restante',pdfMoney(bal),true,bal>0?[179,38,30]:[23,114,74]);
+  if(due!==s.pay&&!s.off) row('Salaire de base',pdfMoney(s.pay),false,[110,120,140]);
+  row('Salaire du mois',pdfMoney(due),false,[17,27,46]); if(adv>0) row('dont avance(s)',pdfMoney(adv),false,[110,120,140]); row('Total payé',pdfMoney(paid),true,[17,27,46]); row('Balance restante',pdfMoney(bal),true,bal>0?[179,38,30]:[23,114,74]);
   pdfNeed(o,80); o.y+=30; d.setDrawColor(120,130,150); d.line(M,o.y,M+210,o.y); d.line(o.PW-M-210,o.y,o.PW-M,o.y); o.y+=13; d.setFont('helvetica','normal'); d.setFontSize(9); d.setTextColor(75,88,114);
   d.text(pdfTxt("Signature de l'employé(e)"),M,o.y); d.text(pdfTxt('Signature de la direction'),o.PW-M-210,o.y);
-  pdfDone(o,'fiche-de-paie-'+slug(s.name)+'-'+m+'.pdf','Fiche de paie - '+s.name);
+  pdfFoot(o,'Fiche de paie - '+s.name); var ab=o.doc.output('arraybuffer'), fn='fiche-de-paie-'+slug(s.name)+'-'+m+'.pdf';
+  if(send){ slipSend(s,m,ab,fn,due,paid,bal); return; }
+  saveFile(fn,ab,'application/pdf');
+}
+function slipSend(s,m,ab,fn,due,paid,bal){
+  var msg='Hope Christian Academy : fiche de paie de '+s.name+' pour le mois travaillé de '+monthLabel(m+'-01')+'. Salaire du mois : '+numF(due)+' '+rcCode()+' · payé : '+numF(paid)+' '+rcCode()+' · balance : '+numF(bal)+' '+rcCode()+'. Merci et que Dieu vous bénisse.';
+  var file=null; try{ file=new File([ab],fn,{type:'application/pdf'}); }catch(_){}
+  if(file&&navigator.canShare&&navigator.canShare({files:[file]})&&navigator.share){ navigator.share({files:[file],title:'Fiche de paie',text:msg}).catch(function(){}); return; }
+  saveFile(fn,ab,'application/pdf'); var n=waNum(s.ph);
+  if(n) window.open('https://wa.me/'+n+'?text='+encodeURIComponent(msg),'_blank'); else toast("Ajoutez le numéro WhatsApp de l'employé(e) (fiche de l'employé) pour l'envoyer.");
 }
 function ppRowsClick(e){
   var b=e.target.closest('button[data-pp]'); if(!b||!canPriv()) return; var s=staffOf(b.dataset.id), m=$('#ppMon').value; if(!s) return;
@@ -2564,7 +2583,7 @@ function ppRowsClick(e){
     priv.pay.push({id:uid(),sid:s.id,m:m,d:pd,a:pa,n:'',no:nextPayNo(pd)}); privSave(); renderPaie(); toast('Paiement enregistré.'); return;
   }
   if(b.dataset.pp==='slip'){ slipPdf(s,m); return; }
-  if(b.dataset.pp==='full'){ var bal=Math.round((s.pay-paidFor(s.id,m))*100)/100; if(bal>0){ priv.pay.push({id:uid(),sid:s.id,m:m,d:todayIso(),a:bal,n:'Salaire du mois',no:nextPayNo(todayIso())}); privSave(); renderPaie(); toast('Paiement enregistré.'); } }
+  if(b.dataset.pp==='full'){ var bal=Math.round((dueOf(s,m)-paidFor(s.id,m))*100)/100; if(bal>0){ priv.pay.push({id:uid(),sid:s.id,m:m,d:todayIso(),a:bal,n:'Salaire du mois',no:nextPayNo(todayIso())}); privSave(); renderPaie(); toast('Paiement enregistré.'); } }
 }
 $('#ppRows').addEventListener('click',ppRowsClick); $('#hpRows').addEventListener('click',ppRowsClick); $('#ppRows').addEventListener('click',ppHistClick); $('#fdPays').addEventListener('click',ppHistClick);
 
@@ -2572,12 +2591,12 @@ function payRcpBuild(p){
   var s=staffOf(p.sid); if(!s) return null;
   if(!p.no){ p.no=nextPayNo(p.d); privSave(); }
   var o=newPdf('Reçu de paie','N° '+p.no); if(!o){ pdfNoLib(); return null; }
-  var d=o.doc, M=o.M, CW=o.PW-2*M, due=s.off?0:s.pay, paid=paidFor(s.id,p.m), bal=Math.round((due-paid)*100)/100;
+  var d=o.doc, M=o.M, CW=o.PW-2*M, due=dueOf(s,p.m), paid=paidFor(s.id,p.m), bal=Math.round((due-paid)*100)/100;
   function F(l,v){ d.setFont('helvetica','normal'); d.setFontSize(10); d.setTextColor(110,120,140); d.text(pdfTxt(l),M,o.y+10); d.setFont('helvetica','bold'); d.setFontSize(13); d.setTextColor(17,27,46); d.text(d.splitTextToSize(pdfTxt(v),CW-170)[0]||'',M+170,o.y+11); d.setDrawColor(226,231,240); d.line(M,o.y+22,M+CW,o.y+22); o.y+=32; }
   o.y+=6;
   F('Reçu par',s.name); if(s.role) F('Poste',s.role);
-  F('Mois payé',monthLabel(p.m+'-01')); F('Date du paiement',shortDate(p.d));
-  if(p.n) F('Note',p.n);
+  F('Mois travaillé',monthLabel(p.m+'-01')); F('Date du paiement',shortDate(p.d));
+  if(p.k==='avance') F('Type','Avance sur salaire'); if(p.n) F('Note',p.n);
   o.y+=8; d.setFillColor(23,64,139); d.rect(M,o.y,CW,44,'F'); d.setFont('helvetica','bold'); d.setFontSize(11); d.setTextColor(255,255,255);
   d.text('MONTANT PAYÉ',M+12,o.y+18); d.setFontSize(18); d.text(pdfMoney(p.a),M+CW-12,o.y+30,{align:'right'}); o.y+=44;
   d.setFont('helvetica','normal'); d.setFontSize(10.5); d.setTextColor(75,88,114); d.text(d.splitTextToSize(pdfTxt('En lettres : '+rcWords(p.a)),CW),M,o.y+18); o.y+=34;
@@ -2588,7 +2607,7 @@ function payRcpBuild(p){
   pdfFoot(o,'Reçu de paie '+p.no);
   return {ab:d.output('arraybuffer'),fn:'recu-paie-'+slug(s.name)+'-'+p.no+'.pdf',s:s};
 }
-function payRcpMsg(p,s){ return 'Hope Christian Academy : reçu de paie '+p.no+' pour '+s.name+' ('+monthLabel(p.m+'-01')+'). Montant payé : '+numF(p.a)+' '+rcCode()+' le '+shortDate(p.d)+'. Merci et que Dieu vous bénisse.'; }
+function payRcpMsg(p,s){ return 'Hope Christian Academy : reçu de paie '+p.no+' pour '+s.name+' (mois travaillé : '+monthLabel(p.m+'-01')+'). Montant payé : '+numF(p.a)+' '+rcCode()+' le '+shortDate(p.d)+'. Merci et que Dieu vous bénisse.'; }
 function ppHistClick(e){
   var b=e.target.closest('button[data-pp]'); if(!b||!canPriv()) return;
   if(b.dataset.pp==='rcp'||b.dataset.pp==='snd'){
@@ -2667,7 +2686,7 @@ function ppLineHtml(p){
   if(pve===p.id){
     return '<div class="payln" data-pe-row="'+esc(p.id)+'"><input type="date" data-pe="d" value="'+esc(p.d)+'" aria-label="Date du paiement"><input type="number" inputmode="decimal" min="0" step="0.01" data-pe="a" value="'+p.a+'" style="width:120px" aria-label="Montant"><input type="text" data-pe="n" maxlength="80" placeholder="Note" value="'+esc(p.n||'')+'" aria-label="Note"><select data-pe="m" aria-label="Mois travaillé">'+mo.map(function(mm){ return '<option value="'+esc(mm)+'"'+(mm===p.m?' selected':'')+'>'+esc(monthLabel(mm+'-01'))+'</option>'; }).join('')+'</select><button type="button" class="btn sm" data-pp="esave" data-id="'+esc(p.id)+'">Enregistrer</button> <button type="button" class="ghost sm" data-pp="ecancel">Annuler</button></div>';
   }
-  return '<div class="payln"><span class="grow"><b>'+fmt(p.a)+'</b> · '+esc(shortDate(p.d))+'<br><span class="hint">'+esc(p.no||'')+(p.n?' · '+esc(p.n):'')+'</span></span>'+(pvc===p.id?'<button type="button" class="rm" data-pp="yes" data-id="'+esc(p.id)+'">Oui, retirer</button> <button type="button" class="ghost sm" data-pp="no">Non</button>':'<button type="button" class="btn sm" data-pp="rcp" data-id="'+esc(p.id)+'">Reçu (PDF)</button> <button type="button" class="ghost sm" data-pp="snd" data-id="'+esc(p.id)+'">Envoyer'+(p.snt?' ✓':'')+'</button> <button type="button" class="ghost sm" data-pp="edit" data-id="'+esc(p.id)+'">Modifier</button> <button type="button" class="ghost sm" data-pp="del" data-id="'+esc(p.id)+'">Retirer</button>')+'</div>';
+  return '<div class="payln"><span class="grow"><b>'+fmt(p.a)+'</b> · '+esc(shortDate(p.d))+'<br><span class="hint">'+esc(p.no||'')+(p.k==='avance'?' · <b>Avance</b>':'')+(p.n?' · '+esc(p.n):'')+'</span></span>'+(pvc===p.id?'<button type="button" class="rm" data-pp="yes" data-id="'+esc(p.id)+'">Oui, retirer</button> <button type="button" class="ghost sm" data-pp="no">Non</button>':'<button type="button" class="btn sm" data-pp="rcp" data-id="'+esc(p.id)+'">Reçu (PDF)</button> <button type="button" class="ghost sm" data-pp="snd" data-id="'+esc(p.id)+'">Envoyer'+(p.snt?' ✓':'')+'</button> <button type="button" class="ghost sm" data-pp="edit" data-id="'+esc(p.id)+'">Modifier</button> <button type="button" class="ghost sm" data-pp="del" data-id="'+esc(p.id)+'">Retirer</button>')+'</div>';
 }
 function ppBlockHtml(r,m){
   var ps=priv.pay.filter(function(p){return p.sid===r.s.id&&p.m===m;}).sort(function(a,b){return a.d.localeCompare(b.d);});
@@ -2680,7 +2699,7 @@ function ppHistHtml(p,run){
   if(pve===p.id){
     return '<tr data-pe-row="'+esc(p.id)+'"><td class="tl"><input type="date" data-pe="d" value="'+esc(p.d)+'" style="width:100%"><br><input type="text" data-pe="n" maxlength="80" placeholder="Note" value="'+esc(p.n||'')+'" style="width:100%;margin-top:4px"><br><span class="hint">Mois travaillé</span><br><select data-pe="m" style="width:100%">'+schoolMonths(priv.pay.map(function(x){return x.m;})).map(function(mm){ return '<option value="'+esc(mm)+'"'+(mm===p.m?' selected':'')+'>'+esc(monthLabel(mm+'-01'))+'</option>'; }).join('')+'</select><br><span class="hint">'+esc(p.no||'')+'</span></td><td class="tl">'+esc(s?s.name:'-')+'</td><td class="n"><input type="number" inputmode="decimal" min="0" step="0.01" data-pe="a" value="'+p.a+'" style="width:100%"></td><td class="n">'+fmt(run)+'</td><td><button type="button" class="btn sm" data-pp="esave" data-id="'+esc(p.id)+'">Enregistrer</button> <button type="button" class="ghost sm" data-pp="ecancel">Annuler</button></td></tr>';
   }
-  return '<tr><td class="tl">'+esc(shortDate(p.d))+'<br><span class="hint">'+esc(p.no||'')+(p.n?' · '+esc(p.n):'')+'</span></td><td class="tl">'+esc(s?s.name:'-')+'</td><td class="n">'+fmt(p.a)+'</td><td class="n">'+fmt(run)+'</td><td>'+(pvc===p.id?'<button type="button" class="rm" data-pp="yes" data-id="'+esc(p.id)+'">Oui</button> <button type="button" class="ghost sm" data-pp="no">Non</button>':'<button type="button" class="btn sm" data-pp="rcp" data-id="'+esc(p.id)+'">Reçu (PDF)</button> <button type="button" class="ghost sm" data-pp="snd" data-id="'+esc(p.id)+'">Envoyer'+(p.snt?' ✓':'')+'</button> <button type="button" class="ghost sm" data-pp="edit" data-id="'+esc(p.id)+'">Modifier</button> <button type="button" class="ghost sm" data-pp="del" data-id="'+esc(p.id)+'">Retirer</button>')+'</td></tr>';
+  return '<tr><td class="tl">'+esc(shortDate(p.d))+'<br><span class="hint">'+esc(p.no||'')+(p.k==='avance'?' · <b>Avance</b>':'')+(p.n?' · '+esc(p.n):'')+'</span></td><td class="tl">'+esc(s?s.name:'-')+'</td><td class="n">'+fmt(p.a)+'</td><td class="n">'+fmt(run)+'</td><td>'+(pvc===p.id?'<button type="button" class="rm" data-pp="yes" data-id="'+esc(p.id)+'">Oui</button> <button type="button" class="ghost sm" data-pp="no">Non</button>':'<button type="button" class="btn sm" data-pp="rcp" data-id="'+esc(p.id)+'">Reçu (PDF)</button> <button type="button" class="ghost sm" data-pp="snd" data-id="'+esc(p.id)+'">Envoyer'+(p.snt?' ✓':'')+'</button> <button type="button" class="ghost sm" data-pp="edit" data-id="'+esc(p.id)+'">Modifier</button> <button type="button" class="ghost sm" data-pp="del" data-id="'+esc(p.id)+'">Retirer</button>')+'</td></tr>';
 }
 /* ----- Section privée : employés cachés ----- */
 function renderHid(){
@@ -3336,112 +3355,137 @@ $('#mtMove').addEventListener('click',function(){
 /* ---------- Registre de paie (une ligne par enseignant, case « Payé ») ---------- */
 var rgAsk=null;
 function rgPays(sid,m){ return priv.pay.filter(function(p){return p.sid===sid&&p.m===m;}); }
+function rgAdv(sid,m){ return sumA(rgPays(sid,m).filter(function(p){return p.k==='avance';})); }
+function rgRate(m){ var r=(priv.rt||{})[m]; return r==null?100:r; }
 function rgRender(){
   var tb=document.getElementById('rgRows'); if(!tb) return;
   var m=$('#ppMon').value; if(!$('#rgDate').value) $('#rgDate').value=todayIso();
   $('#rgCur').textContent=curLbl();
-  var rows=payRows(m);
+  var rt=rgRate(m), ri=$('#rgRateIn'); if(ri&&document.activeElement!==ri) ri.value=rt;
+  Array.prototype.forEach.call(document.querySelectorAll('#rgRate button[data-rt]'),function(bt){ bt.className=(Number(bt.dataset.rt)===rt?'btn':'ghost')+' sm'; });
+  var rows=payRows(m), ov=(priv.ov||{})[m]||{};
   setH(tb,rows.length?rows.map(function(r,i){
-    var ps=rgPays(r.s.id,m), paid=ps.length>0, multi=ps.length>1, amt=paid?r.paid:(r.due>0?r.due:''),
-        last=ps.length?ps.slice().sort(function(a,b){return a.d.localeCompare(b.d);})[ps.length-1].d:'';
+    var ps=rgPays(r.s.id,m), adv=rgAdv(r.s.id,m), full=r.paid>0&&r.bal<=0,
+        last=ps.length?ps.slice().sort(function(a,b){return a.d.localeCompare(b.d);})[ps.length-1].d:'', id=esc(r.s.id);
     var line='<tr><td class="n">'+(i+1)+'</td><td class="tl"><b>'+esc(r.s.name)+'</b>'+(r.s.role?'<br><span class="hint">'+esc(r.s.role)+'</span>':'')
-      +(paid?'<br><span class="hint">Payé le '+esc(shortDate(last))+(multi?' · '+ps.length+' paiements':'')+'</span> <button type="button" class="ghost sm" data-rg="slip" data-id="'+esc(r.s.id)+'">Fiche de paie (PDF)</button>':'')+'</td>'
-      +'<td class="n"><input type="number" inputmode="decimal" min="0" step="0.01" data-rg="amt" data-id="'+esc(r.s.id)+'" value="'+amt+'" style="width:110px"'+(multi?' disabled title="Plusieurs paiements : modifiez-les dans la liste du résumé plus bas"':'')+' aria-label="Montant"></td>'
-      +'<td><input type="checkbox" data-rg="chk" data-id="'+esc(r.s.id)+'"'+(paid?' checked':'')+' aria-label="Payé" style="width:26px;height:26px"></td></tr>';
-    if(rgAsk&&rgAsk.t==='undo'&&rgAsk.sid===r.s.id) line+='<tr><td colspan="4" class="tl"><b>Retirer le paiement de '+esc(r.s.name)+' ('+fmt(r.paid)+') ?</b> <button type="button" class="rm" data-rgc="yes">Oui, retirer</button> <button type="button" class="ghost sm" data-rgc="no">Non</button></td></tr>';
+      +(r.paid>0?'<br><span class="hint">Payé '+fmt(r.paid)+(adv>0?' (dont avance '+fmt(adv)+')':'')+' · le '+esc(shortDate(last))+'</span>':'')
+      +(r.paid>0&&r.bal>0?'<br><b>Reste à payer : '+fmt(r.bal)+'</b>':'')
+      +(ov[r.s.id]!=null?'<br><span class="hint">Montant modifié (salaire de base '+fmt(r.s.pay)+')</span>':(rt<100&&r.due>0?'<br><span class="hint">Taux '+rt+' % (salaire de base '+fmt(r.s.pay)+')</span>':''))
+      +'<br><button type="button" class="ghost sm" data-rg="adv" data-id="'+id+'">+ Avance</button> <button type="button" class="ghost sm" data-rg="slip" data-id="'+id+'">Fiche (PDF)</button> <button type="button" class="ghost sm" data-rg="wa" data-id="'+id+'">Fiche WhatsApp</button></td>'
+      +'<td class="n"><input type="number" inputmode="decimal" min="0" step="0.01" data-rg="due" data-id="'+id+'" value="'+r.due+'" style="width:100px" aria-label="Salaire dû"><br>'
+      +'<select data-rg="pct" data-id="'+id+'" aria-label="Pourcentage du salaire"><option value="">% du salaire…</option><option value="100">100 %</option><option value="75">75 %</option><option value="50">50 %</option><option value="25">25 %</option><option value="0">0 %</option></select></td>'
+      +'<td><input type="checkbox" data-rg="chk" data-id="'+id+'"'+(full?' checked':'')+' aria-label="Payé" style="width:26px;height:26px"></td></tr>';
+    if(rgAsk&&rgAsk.t==='undo'&&rgAsk.sid===r.s.id) line+='<tr><td colspan="4" class="tl"><b>Retirer les paiements de '+esc(r.s.name)+' ('+fmt(r.paid-adv)+', sans les avances) ?</b> <button type="button" class="rm" data-rgc="yes">Oui, retirer</button> <button type="button" class="ghost sm" data-rgc="no">Non</button></td></tr>';
+    if(rgAsk&&rgAsk.t==='adv'&&rgAsk.sid===r.s.id) line+='<tr><td colspan="4" class="tl"><b>Avance / prêt pour '+esc(r.s.name)+' (déduit du salaire de '+esc(monthLabel(m+'-01'))+')</b><div class="payln"><input type="number" inputmode="decimal" min="0" step="0.01" id="rgAdvA" placeholder="Montant" style="width:110px"><input type="date" id="rgAdvD" value="'+esc($('#rgDate').value||todayIso())+'"><input type="text" id="rgAdvN" maxlength="80" placeholder="Note (ex. urgence)"><button type="button" class="btn sm" data-rgc="advsave">Enregistrer l’avance</button> <button type="button" class="ghost sm" data-rgc="no">Annuler</button></div></td></tr>';
     return line;
   }).join(''):'<tr><td colspan="4" class="hint">Aucun(e) employé(e) pour ce mois.</td></tr>');
   var bar='';
   if(rgAsk&&rgAsk.t==='all'){
-    var k=rows.filter(function(r){return !rgPays(r.s.id,m).length&&r.due>0;});
-    bar='<div class="payln" role="alert"><span class="grow"><b>Marquer payé(e) '+k.length+' employé(e)(s) au montant affiché, avec la date du '+esc(shortDate($('#rgDate').value||todayIso()))+' ?</b></span><button type="button" class="rm" data-rgc="yes">Oui, confirmer</button> <button type="button" class="ghost sm" data-rgc="no">Annuler</button></div>';
+    var k=rows.filter(function(r){return r.bal>0&&r.due>0;});
+    bar='<div class="payln" role="alert"><span class="grow"><b>Payer le reste dû à '+k.length+' employé(e)(s), avec la date du '+esc(shortDate($('#rgDate').value||todayIso()))+' ?</b></span><button type="button" class="rm" data-rgc="yes">Oui, confirmer</button> <button type="button" class="ghost sm" data-rgc="no">Annuler</button></div>';
   }
   setH($('#rgBar'),bar);
 }
+function rgSetOv(m,sid,v){
+  var st=staffOf(sid); if(!st) return;
+  var base=Math.round(st.pay*rgRate(m))/100; priv.ov=priv.ov||{}; priv.ov[m]=priv.ov[m]||{};
+  if(v===base) delete priv.ov[m][sid]; else priv.ov[m][sid]=v;
+  if(!Object.keys(priv.ov[m]).length) delete priv.ov[m];
+}
+function rgSetRate(m,v){
+  if(!canPriv()||!privReady) return; v=Math.max(0,Math.min(100,Number(v)));
+  if(!isFinite(v)){ rgRender(); return; }
+  priv.rt=priv.rt||{}; if(v>=100) delete priv.rt[m]; else priv.rt[m]=Math.round(v*100)/100;
+  if(priv.ov) delete priv.ov[m];
+  privSave(); renderPaie(); toast('Taux du mois : '+v+' %. Les salaires du mois sont recalculés (modifiables ligne par ligne).');
+}
+$('#rgRate').addEventListener('click',function(e){ var b=e.target.closest('button[data-rt]'); if(b) rgSetRate($('#ppMon').value,b.dataset.rt); });
+$('#rgRateIn').addEventListener('change',function(e){ if(e.target.value!=='') rgSetRate($('#ppMon').value,e.target.value); });
 $('#rgRows').addEventListener('change',function(e){
   var t=e.target, sid=t.dataset&&t.dataset.id; if(!sid||!canPriv()||!privReady) return;
   var m=$('#ppMon').value, st=staffOf(sid); if(!st) return;
   if(t.dataset.rg==='chk'){
     if(t.checked){
-      var inp=document.querySelector('#rgRows input[data-rg="amt"][data-id="'+sid+'"]'), a=money(inp?inp.value:0);
-      if(a<=0){ t.checked=false; toast('Entrez un montant supérieur à 0.'); return; }
+      var r=payRows(m).filter(function(x){return x.s.id===sid;})[0], a=r?r.bal:0;
+      if(!(a>0)){ t.checked=false; toast('Rien à payer : le salaire dû est 0 ou déjà entièrement payé.'); return; }
       var d=$('#rgDate').value||todayIso();
-      priv.pay.push({id:uid(),sid:sid,m:m,d:d,a:a,n:'',no:nextPayNo(d)}); privSave(); renderPaie(); toast('Payé : '+st.name+'.');
+      priv.pay.push({id:uid(),sid:sid,m:m,d:d,a:a,n:'',no:nextPayNo(d)}); privSave(); renderPaie(); toast('Payé : '+st.name+' ('+fmt(a)+').');
     } else { t.checked=true; rgAsk={t:'undo',sid:sid}; rgRender(); }
-  } else if(t.dataset.rg==='amt'){
-    var ps=rgPays(sid,m);
-    if(ps.length===1){ var a2=money(t.value); if(a2<=0){ toast('Le montant doit être supérieur à 0. Pour annuler, décochez « Payé ».'); renderPaie(); return; } ps[0].a=a2; ps[0].snt=null; privSave(); renderPaie(); toast('Montant modifié.'); }
+  } else if(t.dataset.rg==='due'){
+    rgSetOv(m,sid,money(t.value)); privSave(); renderPaie(); toast('Salaire du mois modifié.');
+  } else if(t.dataset.rg==='pct'){
+    if(t.value==='') return; rgSetOv(m,sid,Math.round(st.pay*Number(t.value))/100); privSave(); renderPaie(); toast('Salaire du mois : '+t.value+' %.');
   }
 });
-$('#rgRows').addEventListener('click',function(e){
-  var b=e.target.closest('button[data-rg="slip"]'); if(!b||!canPriv()) return;
-  var st=staffOf(b.dataset.id); if(st) slipPdf(st,$('#ppMon').value);
-});
-$('#rgBar').addEventListener('click',function(e){
-  var b=e.target.closest('button[data-rgc]'); if(!b) return;
-  var m=$('#ppMon').value, ask=rgAsk; rgAsk=null;
-  if(b.dataset.rgc!=='yes'||!ask||!canPriv()||!privReady){ rgRender(); return; }
-  if(ask.t==='all'){
+function rgClick(e){
+  var b=e.target.closest('button[data-rg],button[data-rgc]'); if(!b||!canPriv()) return;
+  var m=$('#ppMon').value;
+  if(b.dataset.rg){
+    var st=staffOf(b.dataset.id); if(!st) return;
+    if(b.dataset.rg==='slip') slipPdf(st,m); else if(b.dataset.rg==='wa') slipPdf(st,m,true);
+    else if(b.dataset.rg==='adv'){ rgAsk={t:'adv',sid:st.id}; rgRender(); }
+    return;
+  }
+  var ask=rgAsk; rgAsk=null; var c=b.dataset.rgc;
+  if(c==='no'||!ask||!privReady){ rgRender(); return; }
+  if(c==='yes'&&ask.t==='undo'){
+    priv.pay=priv.pay.filter(function(p){return !(p.sid===ask.sid&&p.m===m&&p.k!=='avance');}); privSave(); renderPaie(); toast('Paiement retiré.');
+  } else if(c==='yes'&&ask.t==='all'){
     var d=$('#rgDate').value||todayIso(), n=0;
-    payRows(m).forEach(function(r){
-      if(rgPays(r.s.id,m).length) return;
-      var inp=document.querySelector('#rgRows input[data-rg="amt"][data-id="'+r.s.id+'"]'), a=money(inp&&inp.value!==''?inp.value:r.due);
-      if(a>0){ priv.pay.push({id:uid(),sid:r.s.id,m:m,d:d,a:a,n:'',no:nextPayNo(d)}); n++; }
-    });
+    payRows(m).forEach(function(r){ if(r.bal>0&&r.due>0){ priv.pay.push({id:uid(),sid:r.s.id,m:m,d:d,a:r.bal,n:'',no:nextPayNo(d)}); n++; } });
     privSave(); renderPaie(); toast(n+' paiement(s) enregistré(s).');
-  }
-});
-$('#rgRows').addEventListener('click',function(e){
-  var b=e.target.closest('button[data-rgc]'); if(!b) return;
-  var m=$('#ppMon').value, ask=rgAsk; rgAsk=null;
-  if(b.dataset.rgc==='yes'&&ask&&ask.t==='undo'&&canPriv()&&privReady){
-    priv.pay=priv.pay.filter(function(p){return !(p.sid===ask.sid&&p.m===m);}); privSave(); renderPaie(); toast('Paiement retiré.');
+  } else if(c==='advsave'&&ask.t==='adv'){
+    var a=money($('#rgAdvA')&&$('#rgAdvA').value), dd=($('#rgAdvD')&&$('#rgAdvD').value)||todayIso(), nn=(($('#rgAdvN')&&$('#rgAdvN').value)||'').trim().replace(/\s+/g,' ').slice(0,80);
+    if(a<=0){ rgAsk=ask; rgRender(); toast('Entrez un montant supérieur à 0.'); return; }
+    priv.pay.push({id:uid(),sid:ask.sid,m:m,d:dd,a:a,n:nn,no:nextPayNo(dd),k:'avance'}); privSave(); renderPaie(); toast('Avance enregistrée.');
   } else rgRender();
-});
+}
+$('#rgRows').addEventListener('click',rgClick); $('#rgBar').addEventListener('click',rgClick);
 $('#rgAll').addEventListener('click',function(){
   if(!canPriv()||!privReady) return;
-  var m=$('#ppMon').value, k=payRows(m).filter(function(r){return !rgPays(r.s.id,m).length&&r.due>0;});
-  if(!k.length){ toast('Tout le monde est déjà marqué payé pour ce mois.'); return; }
+  var m=$('#ppMon').value, k=payRows(m).filter(function(r){return r.bal>0&&r.due>0;});
+  if(!k.length){ toast('Tout le monde est déjà payé pour ce mois.'); return; }
   rgAsk={t:'all'}; rgRender(); try{ $('#rgBar').scrollIntoView({block:'center'}); }catch(_){}
 });
 $('#rgDate').addEventListener('change',rgRender);
 $('#rgPdf').addEventListener('click',function(){
   var m=$('#ppMon').value, rows=payRows(m), J=window.jspdf&&window.jspdf.jsPDF; if(!J){ pdfNoLib(); return; }
-  var d=new J({unit:'pt',format:'letter',orientation:'landscape'}), PW=792, PH=612, M=36, CW=PW-2*M;
-  var cw=[36,280,240,100,64], X=[M]; cw.forEach(function(w,i){ X.push(X[i]+w); });
+  var d=new J({unit:'pt',format:'letter',orientation:'landscape'}), PW=792, PH=612, M=36, CW=PW-2*M, rt=rgRate(m);
+  var cw=[28,190,140,86,76,86,76,38], X=[M]; cw.forEach(function(w,i){ X.push(X[i]+w); });
   var ps=priv.pay.filter(function(p){return p.m===m;}).sort(function(a,b){return a.d.localeCompare(b.d);});
   var dpaid=ps.length?ps[ps.length-1].d:($('#rgDate').value||todayIso());
   function ctr(t,y,size,bold,col){ d.setFont('helvetica',bold?'bold':'normal'); d.setFontSize(size); d.setTextColor(col[0],col[1],col[2]); d.text(pdfTxt(t),PW/2,y,{align:'center'}); }
   function head(first){
     var y=first?30:M;
     if(first){ try{ d.addImage(LOGO,'PNG',M,22,48,48); }catch(e){}
-      ctr('HOPE CHRISTIAN ACADEMY',42,18,true,[17,27,46]); ctr('REGISTRE DE PAIE MENSUEL',60,12,true,[23,64,139]); ctr('CONFIDENTIEL - DOCUMENT FINANCIER OFFICIEL DE L\'ECOLE',74,8,false,[110,120,140]);
+      ctr('HOPE CHRISTIAN ACADEMY',42,18,true,[17,27,46]); ctr('REGISTRE DE PAIE MENSUEL'+(rt<100?' - TAUX DU MOIS : '+rt+' %':''),60,12,true,[23,64,139]); ctr('CONFIDENTIEL - DOCUMENT FINANCIER OFFICIEL DE L\'ECOLE',74,8,false,[110,120,140]);
       d.setFontSize(10); d.setTextColor(17,27,46); d.setFont('helvetica','bold');
-      var fy=104; d.text('MOIS TRAVAILLE :',M,fy); d.text('DATE DU PAIEMENT :',M+290,fy); d.text('DEVISE :',M+560,fy);
+      var fy=104; d.text('MOIS TRAVAILLE :',M,fy); d.text('DERNIER PAIEMENT :',M+290,fy); d.text('DEVISE :',M+560,fy);
       d.setFont('helvetica','normal'); d.text(pdfTxt(monthLabel(m+'-01').toUpperCase()),M+100,fy); d.text(pdfTxt(shortDate(dpaid)),M+400,fy); d.text(pdfTxt(curLbl()),M+612,fy);
       d.setDrawColor(120,130,150); d.line(M+100,fy+3,M+270,fy+3); d.line(M+400,fy+3,M+540,fy+3); d.line(M+612,fy+3,PW-M,fy+3);
       y=126;
     }
-    d.setFillColor(236,228,212); d.rect(M,y,CW,24,'F'); d.setFont('helvetica','bold'); d.setFontSize(9); d.setTextColor(17,27,46);
-    d.text('N°',X[0]+10,y+15); d.text('NOM DE L\'ENSEIGNANT(E)',X[1]+8,y+15); d.text('CLASSE ENSEIGNEE',X[2]+8,y+15); d.text('MONTANT',X[4]-8,y+15,{align:'right'}); d.text('PAYE',X[4]+32,y+15,{align:'center'});
+    d.setFillColor(236,228,212); d.rect(M,y,CW,24,'F'); d.setFont('helvetica','bold'); d.setFontSize(8.5); d.setTextColor(17,27,46);
+    d.text('N°',X[0]+8,y+15); d.text('NOM DE L\'ENSEIGNANT(E)',X[1]+8,y+15); d.text('CLASSE ENSEIGNEE',X[2]+8,y+15); d.text('SALAIRE DU',X[4]-8,y+15,{align:'right'}); d.text('AVANCE',X[5]-8,y+15,{align:'right'}); d.text('PAYE',X[6]-8,y+15,{align:'right'}); d.text('RESTE',X[7]-8,y+15,{align:'right'}); d.text('OK',X[7]+19,y+15,{align:'center'});
     return y+24;
   }
-  var y=head(true), total=0, RH=26;
+  var y=head(true), TD=0, TA=0, TP=0, RH=26;
   rows.forEach(function(r,i){
     if(y+RH>PH-110){ d.addPage(); y=head(false); }
-    var paid=r.paid>0, amt=paid?r.paid:r.due; total+=amt;
+    var adv=rgAdv(r.s.id,m), full=r.paid>0&&r.bal<=0; TD+=r.due; TA+=adv; TP+=r.paid;
     if(i%2) { d.setFillColor(246,243,236); d.rect(M,y,CW,RH,'F'); }
     d.setFont('helvetica','normal'); d.setFontSize(10); d.setTextColor(17,27,46);
-    d.text(String(i+1),X[0]+12,y+17); d.text(d.splitTextToSize(pdfTxt(r.s.name),cw[1]-14)[0]||'',X[1]+8,y+17); d.setFontSize(9); d.text(d.splitTextToSize(pdfTxt(r.s.role||''),cw[2]-14)[0]||'',X[2]+8,y+17); d.setFontSize(10);
-    d.text(pdfMoney(amt),X[4]-8,y+17,{align:'right'});
-    var bx=X[4]+26, by=y+7; d.setDrawColor(23,64,139); d.rect(bx,by,12,12);
-    if(paid){ d.setLineWidth(1.4); d.line(bx+2,by+2,bx+10,by+10); d.line(bx+10,by+2,bx+2,by+10); d.setLineWidth(0.6); }
+    d.text(String(i+1),X[0]+10,y+17); d.text(d.splitTextToSize(pdfTxt(r.s.name),cw[1]-14)[0]||'',X[1]+8,y+17); d.setFontSize(9); d.text(d.splitTextToSize(pdfTxt(r.s.role||''),cw[2]-14)[0]||'',X[2]+8,y+17); d.setFontSize(10);
+    d.text(pdfMoney(r.due),X[4]-8,y+17,{align:'right'}); d.text(adv>0?pdfMoney(adv):'-',X[5]-8,y+17,{align:'right'}); d.text(pdfMoney(r.paid),X[6]-8,y+17,{align:'right'}); d.text(pdfMoney(r.bal),X[7]-8,y+17,{align:'right'});
+    var bx=X[7]+13, by=y+7; d.setDrawColor(23,64,139); d.rect(bx,by,12,12);
+    if(full){ d.setLineWidth(1.4); d.line(bx+2,by+2,bx+10,by+10); d.line(bx+10,by+2,bx+2,by+10); d.setLineWidth(0.6); }
     d.setDrawColor(226,231,240); d.line(M,y+RH,M+CW,y+RH);
     y+=RH;
   });
   if(y+100>PH-30){ d.addPage(); y=M; }
-  d.setFont('helvetica','normal'); d.setFontSize(8); d.setTextColor(110,120,140); d.text('Une ligne par enseignant(e). Cochez « Payé » après le paiement.'.replace(/[«»]/g,'"'),M,y+16);
-  d.setFont('helvetica','bold'); d.setFontSize(10); d.setTextColor(17,27,46); d.text('TOTAL DE LA PAIE :',X[3]-6,y+18,{align:'right'}); d.setFont('helvetica','bold'); d.text(pdfMoney(Math.round(total*100)/100),X[4]-8,y+18,{align:'right'});
+  d.setFont('helvetica','normal'); d.setFontSize(8); d.setTextColor(110,120,140); d.text('Le mois travaillé est indépendant de la date du paiement.',M,y+16);
+  d.setFont('helvetica','bold'); d.setFontSize(10); d.setTextColor(17,27,46); d.text('TOTAL :',X[3]+2,y+18,{align:'right'});
+  d.text(pdfMoney(Math.round(TD*100)/100),X[4]-8,y+18,{align:'right'}); d.text(pdfMoney(Math.round(TA*100)/100),X[5]-8,y+18,{align:'right'}); d.text(pdfMoney(Math.round(TP*100)/100),X[6]-8,y+18,{align:'right'}); d.text(pdfMoney(Math.round((TD-TP)*100)/100),X[7]-8,y+18,{align:'right'});
   y+=34; d.setDrawColor(190,150,70); d.line(M,y,PW-M,y); y+=14;
   d.setFont('helvetica','bold'); d.setFontSize(9); d.setTextColor(17,27,46); d.text('AUTORISATION DE PAIE',M,y); y+=14;
   var titles=['PAIE SOUMISE PAR','RECUE ET VERIFIEE PAR','PAYEE PAR'], bw=CW/3;
