@@ -535,9 +535,14 @@ tr.subrow>td{padding:0 10px 12px 10px;text-align:left}
       <div class="dcard" id="ppPay">
         <h2>Paie du mois</h2>
         <label class="lbl" for="ppMon">Mois travaillé (la paie est pour ce mois)<select id="ppMon" class="drow"></select></label>
-        <label class="lbl" for="ppView">Affichage<select id="ppView" class="drow"></select></label>
+        <label class="lbl" for="rgDate">Date du paiement (pour les cases que vous cochez)<input id="rgDate" type="date"></label>
+        <p class="hint">Devise : <b id="rgCur"></b>. Cochez « Payé » sur la ligne de chaque personne. Le montant se modifie directement sur la ligne.</p>
+        <label class="lbl" for="ppView" style="display:none">Affichage<select id="ppView" class="drow"></select></label>
         <div class="fsum" id="ppTot"></div>
-        <div class="tablewrap"><table><thead><tr><th scope="col" class="tl">Employé(e)</th><th scope="col">Salaire</th><th scope="col">Payé</th><th scope="col">Balance</th><th scope="col"></th></tr></thead><tbody id="ppRows"></tbody></table></div>
+        <div id="rgBar"></div>
+        <div class="tablewrap"><table><thead><tr><th scope="col">N°</th><th scope="col" class="tl">Enseignant(e) / Classe</th><th scope="col">Montant</th><th scope="col">Payé</th></tr></thead><tbody id="rgRows"></tbody></table></div>
+        <div class="drow"><button type="button" class="ghost" id="rgAll">Marquer tout le monde payé…</button><button type="button" class="btn" id="rgPdf">Registre de paie (PDF)</button></div>
+        <div class="tablewrap" style="display:none"><table><thead><tr><th scope="col" class="tl">Employé(e)</th><th scope="col">Salaire</th><th scope="col">Payé</th><th scope="col">Balance</th><th scope="col"></th></tr></thead><tbody id="ppRows"></tbody></table></div>
         <h2 style="font-size:1rem;display:none">Enregistrer un paiement</h2>
         <form class="fadd" id="ppForm" autocomplete="off" style="display:none">
           <label class="lbl full">Employé(e)<select id="ppWho" class="drow"></select></label>
@@ -714,7 +719,7 @@ tr.subrow>td{padding:0 10px 12px 10px;text-align:left}
     </div>
   </section>
 </div>
-<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V95 · 15/11/2026 · le résumé liste chaque paiement de « Utilisé » avec Retirer / Modifier</p>
+<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V96 · 15/11/2026 · Paie en registre : une ligne par enseignant, case Payé, montant modifiable; Registre de paie (PDF) sans signature des employés</p>
 <div id="toast" class="toast" role="status" hidden></div>
 <div id="printReport" aria-hidden="true"></div>
 
@@ -2650,7 +2655,7 @@ $('#ppPdf').addEventListener('click',function(){
 
 var addInit={st:false,hs:false};
 function renderPaie(){
-  renderPaieMain(); renderHid(); renderFunds(); forMonths(); monthTools();
+  renderPaieMain(); renderHid(); renderFunds(); forMonths(); monthTools(); rgRender();
   if(!addInit.st&&privReady){ addInit.st=true; $('#stAdd').open=!priv.staff.some(function(s){return !s.hid;}); }
   if(!addInit.hs&&privReady){ addInit.hs=true; $('#hsAdd').open=!priv.staff.some(function(s){return !!s.hid;}); }
 }
@@ -3325,6 +3330,128 @@ $('#mtMove').addEventListener('click',function(){
     list.forEach(function(p){ p.m=t; });
     pvc=null; pve=null; try{ $('#ppMon').value=t; }catch(_){} privSave(); renderPaie(); mtDone(list.length+' paiement(s) déplacé(s) vers '+monthLabel(t+'-01')+'.');
   });
+});
+
+
+/* ---------- Registre de paie (une ligne par enseignant, case « Payé ») ---------- */
+var rgAsk=null;
+function rgPays(sid,m){ return priv.pay.filter(function(p){return p.sid===sid&&p.m===m;}); }
+function rgRender(){
+  var tb=document.getElementById('rgRows'); if(!tb) return;
+  var m=$('#ppMon').value; if(!$('#rgDate').value) $('#rgDate').value=todayIso();
+  $('#rgCur').textContent=curLbl();
+  var rows=payRows(m);
+  setH(tb,rows.length?rows.map(function(r,i){
+    var ps=rgPays(r.s.id,m), paid=ps.length>0, multi=ps.length>1, amt=paid?r.paid:(r.due>0?r.due:''),
+        last=ps.length?ps.slice().sort(function(a,b){return a.d.localeCompare(b.d);})[ps.length-1].d:'';
+    var line='<tr><td class="n">'+(i+1)+'</td><td class="tl"><b>'+esc(r.s.name)+'</b>'+(r.s.role?'<br><span class="hint">'+esc(r.s.role)+'</span>':'')
+      +(paid?'<br><span class="hint">Payé le '+esc(shortDate(last))+(multi?' · '+ps.length+' paiements':'')+'</span> <button type="button" class="ghost sm" data-rg="slip" data-id="'+esc(r.s.id)+'">Fiche de paie (PDF)</button>':'')+'</td>'
+      +'<td class="n"><input type="number" inputmode="decimal" min="0" step="0.01" data-rg="amt" data-id="'+esc(r.s.id)+'" value="'+amt+'" style="width:110px"'+(multi?' disabled title="Plusieurs paiements : modifiez-les dans la liste du résumé plus bas"':'')+' aria-label="Montant"></td>'
+      +'<td><input type="checkbox" data-rg="chk" data-id="'+esc(r.s.id)+'"'+(paid?' checked':'')+' aria-label="Payé" style="width:26px;height:26px"></td></tr>';
+    if(rgAsk&&rgAsk.t==='undo'&&rgAsk.sid===r.s.id) line+='<tr><td colspan="4" class="tl"><b>Retirer le paiement de '+esc(r.s.name)+' ('+fmt(r.paid)+') ?</b> <button type="button" class="rm" data-rgc="yes">Oui, retirer</button> <button type="button" class="ghost sm" data-rgc="no">Non</button></td></tr>';
+    return line;
+  }).join(''):'<tr><td colspan="4" class="hint">Aucun(e) employé(e) pour ce mois.</td></tr>');
+  var bar='';
+  if(rgAsk&&rgAsk.t==='all'){
+    var k=rows.filter(function(r){return !rgPays(r.s.id,m).length&&r.due>0;});
+    bar='<div class="payln" role="alert"><span class="grow"><b>Marquer payé(e) '+k.length+' employé(e)(s) au montant affiché, avec la date du '+esc(shortDate($('#rgDate').value||todayIso()))+' ?</b></span><button type="button" class="rm" data-rgc="yes">Oui, confirmer</button> <button type="button" class="ghost sm" data-rgc="no">Annuler</button></div>';
+  }
+  setH($('#rgBar'),bar);
+}
+$('#rgRows').addEventListener('change',function(e){
+  var t=e.target, sid=t.dataset&&t.dataset.id; if(!sid||!canPriv()||!privReady) return;
+  var m=$('#ppMon').value, st=staffOf(sid); if(!st) return;
+  if(t.dataset.rg==='chk'){
+    if(t.checked){
+      var inp=document.querySelector('#rgRows input[data-rg="amt"][data-id="'+sid+'"]'), a=money(inp?inp.value:0);
+      if(a<=0){ t.checked=false; toast('Entrez un montant supérieur à 0.'); return; }
+      var d=$('#rgDate').value||todayIso();
+      priv.pay.push({id:uid(),sid:sid,m:m,d:d,a:a,n:'',no:nextPayNo(d)}); privSave(); renderPaie(); toast('Payé : '+st.name+'.');
+    } else { t.checked=true; rgAsk={t:'undo',sid:sid}; rgRender(); }
+  } else if(t.dataset.rg==='amt'){
+    var ps=rgPays(sid,m);
+    if(ps.length===1){ var a2=money(t.value); if(a2<=0){ toast('Le montant doit être supérieur à 0. Pour annuler, décochez « Payé ».'); renderPaie(); return; } ps[0].a=a2; ps[0].snt=null; privSave(); renderPaie(); toast('Montant modifié.'); }
+  }
+});
+$('#rgRows').addEventListener('click',function(e){
+  var b=e.target.closest('button[data-rg="slip"]'); if(!b||!canPriv()) return;
+  var st=staffOf(b.dataset.id); if(st) slipPdf(st,$('#ppMon').value);
+});
+$('#rgBar').addEventListener('click',function(e){
+  var b=e.target.closest('button[data-rgc]'); if(!b) return;
+  var m=$('#ppMon').value, ask=rgAsk; rgAsk=null;
+  if(b.dataset.rgc!=='yes'||!ask||!canPriv()||!privReady){ rgRender(); return; }
+  if(ask.t==='all'){
+    var d=$('#rgDate').value||todayIso(), n=0;
+    payRows(m).forEach(function(r){
+      if(rgPays(r.s.id,m).length) return;
+      var inp=document.querySelector('#rgRows input[data-rg="amt"][data-id="'+r.s.id+'"]'), a=money(inp&&inp.value!==''?inp.value:r.due);
+      if(a>0){ priv.pay.push({id:uid(),sid:r.s.id,m:m,d:d,a:a,n:'',no:nextPayNo(d)}); n++; }
+    });
+    privSave(); renderPaie(); toast(n+' paiement(s) enregistré(s).');
+  }
+});
+$('#rgRows').addEventListener('click',function(e){
+  var b=e.target.closest('button[data-rgc]'); if(!b) return;
+  var m=$('#ppMon').value, ask=rgAsk; rgAsk=null;
+  if(b.dataset.rgc==='yes'&&ask&&ask.t==='undo'&&canPriv()&&privReady){
+    priv.pay=priv.pay.filter(function(p){return !(p.sid===ask.sid&&p.m===m);}); privSave(); renderPaie(); toast('Paiement retiré.');
+  } else rgRender();
+});
+$('#rgAll').addEventListener('click',function(){
+  if(!canPriv()||!privReady) return;
+  var m=$('#ppMon').value, k=payRows(m).filter(function(r){return !rgPays(r.s.id,m).length&&r.due>0;});
+  if(!k.length){ toast('Tout le monde est déjà marqué payé pour ce mois.'); return; }
+  rgAsk={t:'all'}; rgRender(); try{ $('#rgBar').scrollIntoView({block:'center'}); }catch(_){}
+});
+$('#rgDate').addEventListener('change',rgRender);
+$('#rgPdf').addEventListener('click',function(){
+  var m=$('#ppMon').value, rows=payRows(m), J=window.jspdf&&window.jspdf.jsPDF; if(!J){ pdfNoLib(); return; }
+  var d=new J({unit:'pt',format:'letter',orientation:'landscape'}), PW=792, PH=612, M=36, CW=PW-2*M;
+  var cw=[36,280,240,100,64], X=[M]; cw.forEach(function(w,i){ X.push(X[i]+w); });
+  var ps=priv.pay.filter(function(p){return p.m===m;}).sort(function(a,b){return a.d.localeCompare(b.d);});
+  var dpaid=ps.length?ps[ps.length-1].d:($('#rgDate').value||todayIso());
+  function ctr(t,y,size,bold,col){ d.setFont('helvetica',bold?'bold':'normal'); d.setFontSize(size); d.setTextColor(col[0],col[1],col[2]); d.text(pdfTxt(t),PW/2,y,{align:'center'}); }
+  function head(first){
+    var y=first?30:M;
+    if(first){ try{ d.addImage(LOGO,'PNG',M,22,48,48); }catch(e){}
+      ctr('HOPE CHRISTIAN ACADEMY',42,18,true,[17,27,46]); ctr('REGISTRE DE PAIE MENSUEL',60,12,true,[23,64,139]); ctr('CONFIDENTIEL - DOCUMENT FINANCIER OFFICIEL DE L\'ECOLE',74,8,false,[110,120,140]);
+      d.setFontSize(10); d.setTextColor(17,27,46); d.setFont('helvetica','bold');
+      var fy=104; d.text('MOIS TRAVAILLE :',M,fy); d.text('DATE DU PAIEMENT :',M+290,fy); d.text('DEVISE :',M+560,fy);
+      d.setFont('helvetica','normal'); d.text(pdfTxt(monthLabel(m+'-01').toUpperCase()),M+100,fy); d.text(pdfTxt(shortDate(dpaid)),M+400,fy); d.text(pdfTxt(curLbl()),M+612,fy);
+      d.setDrawColor(120,130,150); d.line(M+100,fy+3,M+270,fy+3); d.line(M+400,fy+3,M+540,fy+3); d.line(M+612,fy+3,PW-M,fy+3);
+      y=126;
+    }
+    d.setFillColor(236,228,212); d.rect(M,y,CW,24,'F'); d.setFont('helvetica','bold'); d.setFontSize(9); d.setTextColor(17,27,46);
+    d.text('N°',X[0]+10,y+15); d.text('NOM DE L\'ENSEIGNANT(E)',X[1]+8,y+15); d.text('CLASSE ENSEIGNEE',X[2]+8,y+15); d.text('MONTANT',X[4]-8,y+15,{align:'right'}); d.text('PAYE',X[4]+32,y+15,{align:'center'});
+    return y+24;
+  }
+  var y=head(true), total=0, RH=26;
+  rows.forEach(function(r,i){
+    if(y+RH>PH-110){ d.addPage(); y=head(false); }
+    var paid=r.paid>0, amt=paid?r.paid:r.due; total+=amt;
+    if(i%2) { d.setFillColor(246,243,236); d.rect(M,y,CW,RH,'F'); }
+    d.setFont('helvetica','normal'); d.setFontSize(10); d.setTextColor(17,27,46);
+    d.text(String(i+1),X[0]+12,y+17); d.text(d.splitTextToSize(pdfTxt(r.s.name),cw[1]-14)[0]||'',X[1]+8,y+17); d.setFontSize(9); d.text(d.splitTextToSize(pdfTxt(r.s.role||''),cw[2]-14)[0]||'',X[2]+8,y+17); d.setFontSize(10);
+    d.text(pdfMoney(amt),X[4]-8,y+17,{align:'right'});
+    var bx=X[4]+26, by=y+7; d.setDrawColor(23,64,139); d.rect(bx,by,12,12);
+    if(paid){ d.setLineWidth(1.4); d.line(bx+2,by+2,bx+10,by+10); d.line(bx+10,by+2,bx+2,by+10); d.setLineWidth(0.6); }
+    d.setDrawColor(226,231,240); d.line(M,y+RH,M+CW,y+RH);
+    y+=RH;
+  });
+  if(y+100>PH-30){ d.addPage(); y=M; }
+  d.setFont('helvetica','normal'); d.setFontSize(8); d.setTextColor(110,120,140); d.text('Une ligne par enseignant(e). Cochez « Payé » après le paiement.'.replace(/[«»]/g,'"'),M,y+16);
+  d.setFont('helvetica','bold'); d.setFontSize(10); d.setTextColor(17,27,46); d.text('TOTAL DE LA PAIE :',X[3]-6,y+18,{align:'right'}); d.setFont('helvetica','bold'); d.text(pdfMoney(Math.round(total*100)/100),X[4]-8,y+18,{align:'right'});
+  y+=34; d.setDrawColor(190,150,70); d.line(M,y,PW-M,y); y+=14;
+  d.setFont('helvetica','bold'); d.setFontSize(9); d.setTextColor(17,27,46); d.text('AUTORISATION DE PAIE',M,y); y+=14;
+  var titles=['PAIE SOUMISE PAR','RECUE ET VERIFIEE PAR','PAYEE PAR'], bw=CW/3;
+  titles.forEach(function(tt,i){
+    var x=M+i*bw; d.setFont('helvetica','bold'); d.setFontSize(8); d.setTextColor(110,120,140); d.text(tt,x,y);
+    d.setFont('helvetica','normal'); d.setFontSize(9); d.setTextColor(17,27,46);
+    d.text('Nom :',x,y+18); d.text(i===0&&sender?pdfTxt(sender):'',x+34,y+16); d.setDrawColor(120,130,150); d.line(x+32,y+20,x+bw-14,y+20);
+    d.text('Signature :',x,y+40); d.line(x+52,y+42,x+bw-14,y+42);
+  });
+  saveFile('registre-paie-'+m+'.pdf',d.output('arraybuffer'),'application/pdf');
 });
 
 /* ---------- Démarrage ---------- */
