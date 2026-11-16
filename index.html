@@ -276,6 +276,7 @@ details.rcard[open]>summary,#stAdd[open]>summary,#hsAdd[open]>summary{margin-bot
 .fadd .full{grid-column:1/-1}
 .neg{color:var(--abs);font-weight:600} .pos{color:var(--ok);font-weight:600}
 
+.acct .rmrow,.acct [data-fa="paydel"]{display:none !important}
 .langsw{display:inline-flex;align-self:flex-start;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--surface)}
 .langsw button{min-width:2.75rem;min-height:2.75rem;padding:4px 10px;font-weight:700;background:var(--surface);border:0;color:var(--ink-2)}
 .langsw button+button{border-left:1px solid var(--line)}
@@ -635,7 +636,7 @@ tr.subrow>td{padding:0 10px 12px 10px;text-align:left}
       <div class="dcard">
         <h2>Utilisateurs et accès</h2>
         <p>Vous êtes l'administrateur : seul vous pouvez modifier les noms, profils, finances et supprimer. Choisissez le rôle de chaque personne.</p>
-        <p class="hint"><b>Administrateur</b> : tout. <b>Saisie des présences</b> : marque les présences, lit le reste. <b>Lecture seule</b> : consulte seulement.</p>
+        <p class="hint"><b>Administrateur</b> : tout. <b>Inscriptions, présences et frais</b> : ajoute des élèves et des profils, marque les présences, ajoute des paiements d'élèves, sans rien supprimer, sans la paie ni les dépenses. <b>Saisie des présences</b> : marque les présences, lit le reste. <b>Lecture seule</b> : consulte seulement.</p>
         <p class="hint">Pour ajouter une personne : dans Supabase, Authentication, Users, Add user. Elle apparaît ici après sa première connexion.</p>
         <div id="usrList"></div>
       </div>
@@ -721,7 +722,7 @@ tr.subrow>td{padding:0 10px 12px 10px;text-align:left}
     </div>
   </section>
 </div>
-<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V99 · 16/11/2026 · Correction directe : le montant et la date de chaque paiement se changent sur place, sans bouton Modifier</p>
+<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V101 · 16/11/2026 · Nouveau rôle « Inscriptions, présences et frais » (sans suppression, sans paie ni dépenses)</p>
 <div id="toast" class="toast" role="status" hidden></div>
 <div id="printReport" aria-hidden="true"></div>
 
@@ -898,12 +899,12 @@ function defaultCfg(){
 function schoolYear(){ var d=new Date(), y=d.getFullYear(); return d.getMonth()>=7 ? y+'-'+(y+1) : (y-1)+'-'+y; }
 var PF={
   student:[['sec','Inscription / Réinscription'],['regtype','Type','select','',['','Inscription','Réinscription']],['regdate','Date d\'inscription','date'],['admitted','Classe admise','text'],['prevschool','Dernière institution fréquentée','text','full'],
-    ['sec','Identité de l\'élève'],['dob','Date de naissance','date'],['blood','Groupe sanguin','select','',['','A+','A-','B+','B-','AB+','AB-','O+','O-']],['religion','Religion','text'],['phone','Téléphone de l\'élève','tel'],['email','Courriel','email'],['address','Adresse','text','full'],
+    ['sec','Identité de l\'élève'],['fname','Prénom','text'],['lname','Nom de famille','text'],['dob','Date de naissance','date'],['blood','Groupe sanguin','select','',['','A+','A-','B+','B-','AB+','AB-','O+','O-']],['religion','Religion','text'],['phone','Téléphone de l\'élève','tel'],['email','Courriel','email'],['address','Adresse','text','full'],
     ['sec','Parents / tuteurs'],['father','Nom du père','text'],['mother','Nom de la mère','text'],['guardian','Tuteur ou tutrice (si autre)','text','full'],['resp','Parent ou tuteur responsable','text','full'],['pphone','Téléphone des parents','tel'],['pemail','Courriel des parents','email'],
     ['sec','Urgence et sortie de l\'élève'],['contact','Personne à contacter en cas d\'urgence','text'],['cphone','Téléphone de cette personne','tel'],['pickup','Personne autorisée à venir chercher l\'enfant','text','full'],['pickphone','Téléphone de la personne qui vient chercher l\'enfant','tel','full'],
     ['firstaid','Autorisation de premiers soins en cas d\'urgence','select','full',['','Oui, autorisé','Non, pas autorisé']],['medical','Allergies ou problèmes de santé','text','full'],
     ['sec','Note'],['note','Note (à vérifier, remarque)','text','full']],
-  teacher:[['sec','Identité'],['dob','Date de naissance','date'],['status','Situation familiale','select','',['','Célibataire','Marié(e)','Séparé(e)','Divorcé(e)']],['religion','Religion','text'],['phone','Téléphone','tel'],['email','Courriel','email'],['address','Adresse','text','full'],
+  teacher:[['sec','Identité'],['fname','Prénom','text'],['lname','Nom de famille','text'],['dob','Date de naissance','date'],['status','Situation familiale','select','',['','Célibataire','Marié(e)','Séparé(e)','Divorcé(e)']],['religion','Religion','text'],['phone','Téléphone','tel'],['email','Courriel','email'],['address','Adresse','text','full'],
     ['sec','Formation et expérience'],['tschool','Dernier établissement fréquenté','text','full'],['taught','Classe enseignée','text','full'],['qualif','Qualifications','text','full'],['normal','École normale','select','',['','Oui','Non','En cours']],['exp','Expériences','text','full'],
     ['sec','Personne à contacter'],['contact','Nom de la personne','text'],['cphone','Téléphone de cette personne','tel']]
 };
@@ -1044,7 +1045,9 @@ function setMarks(map){
 }
 
 /* ---------- Rendu ---------- */
-function cfgLocked(){ return locked() || (store.mode==='online' && !store.isOwner); }
+function isAcct(){ return store.mode==='online' && store.role==='inscription'; }
+function cfgLocked(){ return locked() || (store.mode==='online' && !store.isOwner && !isAcct()); }
+function adm(){ return !cfgLocked() && !isAcct(); }
 function locked(){ return store.mode==='loading' || store.readonly || (store.mode==='online' && !store.cfgReady); }
 
 function renderSync(){
@@ -1053,7 +1056,7 @@ function renderSync(){
   else if(store.readonly){ st='readonly'; txt='Lecture seule'; }
   else if(store.mode==='online'){
     if(store.err){ st='error'; txt="Échec de l'enregistrement"; }
-    else if(store.cfgReady){ st='online'; txt=store.isOwner?'Enregistré en ligne':'Saisie des présences seulement'; title=store.isOwner?'':"Seul l'administrateur peut modifier les noms, les profils et les finances."; }
+    else if(store.cfgReady){ st='online'; txt=(store.isOwner||isAcct())?'Enregistré en ligne':'Saisie des présences seulement'; title=(store.isOwner||isAcct())?'':"Seul l'administrateur peut modifier les noms, les profils et les finances."; }
   }
   el.dataset.state=st; el.textContent=txt; el.title=title;
 }
@@ -1073,7 +1076,7 @@ function renderChips(){
 function renderHead(){
   var c=curClass(), k=countsFor(c,cur.date);
   $('#clsTitle').textContent=c.name;
-  var tin=$('#clsTeacherIn'); if(document.activeElement!==tin) tin.value=c.teacher; tin.disabled=cfgLocked();
+  var tin=$('#clsTeacherIn'); if(document.activeElement!==tin) tin.value=c.teacher; tin.disabled=!adm();
   $('#pills').innerHTML =
     '<div class="pill p"><span class="pl">Présents</span><span class="pn">'+k.P+'</span></div>'+
     '<div class="pill r"><span class="pl">En retard</span><span class="pn">'+k.R+'</span></div>'+
@@ -1207,7 +1210,7 @@ function renderRecips(){
   var box=$('#recips'), ae=document.activeElement;
   if(ae && ae.tagName==='INPUT' && box.contains(ae)){ updateLinks(); return; }
   var on=$('#oName'), ow=$('#oWa'), keepN=on?on.value:'', keepW=ow?ow.value:'';
-  var d=cfgLocked()?' disabled':'', R=cfg.recip, h='';
+  var d=!adm()?' disabled':'', R=cfg.recip, h='';
   h+='<h3 class="rh">Direction : WhatsApp et e-mail</h3>';
   h+='<p class="hint">Numéros WhatsApp : avec l\'indicatif du pays, sans « + » ni espaces (Haïti : 509).</p>';
   R.roles.forEach(function(r,i){
@@ -1350,12 +1353,12 @@ $('#btnRest').addEventListener('click',function(){
 });
 $('#btnEdit').addEventListener('click',function(){ if(cfgLocked()) return; cur.edit=!cur.edit; cur.confirmRm=null; renderAll(); });
 $('#clsName').addEventListener('change',function(e){
-  if(cfgLocked()) return;
+  if(!adm()){ e.target.value=curClass().name; return; }
   var v=e.target.value.trim(); if(!v) { e.target.value=curClass().name; return; }
   curClass().name=v; saveCfg(); renderAll();
 });
 $('#clsTeacherIn').addEventListener('change',function(e){
-  if(cfgLocked()){ e.target.value=curClass().teacher; return; }
+  if(!adm()){ e.target.value=curClass().teacher; return; }
   var v=e.target.value.trim().replace(/\s+/g,' '), c=curClass();
   if(!v){ e.target.value=c.teacher; if(c.teacher) toast('Le nom du professeur peut être modifié, pas effacé.'); return; }
   c.teacher=v; saveCfg(); renderAll();
@@ -1376,13 +1379,13 @@ $('#roll').addEventListener('click',function(e){
   } else if(b.dataset.act==='prof'){
     var st0=curClass().students.filter(function(x){return x.id===sid;})[0]; if(st0) openProf('student',st0);
   } else if(b.dataset.act==='rm'){
-    if(cfgLocked()) return;
+    if(!adm()) return;
     if(curClass().students.length<=1){ toast('Une classe doit garder au moins un nom.'); return; }
     cur.confirmRm=sid; renderRoll();
   } else if(b.dataset.act==='rmno'){
     cur.confirmRm=null; renderRoll();
   } else if(b.dataset.act==='rmyes'){
-    if(cfgLocked()) return;
+    if(!adm()) return;
     var cl=curClass();
     if(cl.students.length<=1){ toast('Une classe doit garder au moins un nom.'); cur.confirmRm=null; renderRoll(); return; }
     cl.students=cl.students.filter(function(x){ return x.id!==sid; });
@@ -1581,7 +1584,7 @@ function renderFin(){
   if(pf.kind!=='student'){ box.hidden=true; return; }
   box.hidden=false;
   var lk=cfgLocked(), d=lk?' disabled':'', pay=(s.f&&s.f.pay)||[], b=balOf(s);
-  var ro=lk||isBours(s)?' disabled':'';
+  var ro=lk||isBours(s)||isAcct()?' disabled':'';
   var h='<div class="pfsec">Finances</div><table class="fstate"><tbody>';
   h+='<tr><td><label for="fnInsc">Inscription</label></td><td class="n"><input id="fnInsc" class="fin" type="number" inputmode="decimal" min="0" step="0.01" value="'+inscOf(s)+'"'+ro+'> '+curLbl()+'</td></tr>';
   h+='<tr><td><label for="fnPart">Frais de participation</label></td><td class="n"><input id="fnPart" class="fin" type="number" inputmode="decimal" min="0" step="0.01" value="'+partOf(s)+'"'+ro+'> '+curLbl()+'</td></tr>';
@@ -1592,13 +1595,13 @@ function renderFin(){
     h+='<tr><td>'+(x.d?esc(shortDate(x.d)):'—')+(x.n?' <span class="hint">'+esc(x.n)+'</span>':'')+'</td><td class="n">'+fmt(x.a)+' '+(pf.confirmPay===x.id ? '<button type="button" class="rm" data-fa="payyes" data-id="'+esc(x.id)+'">Oui</button> <button type="button" class="ghost sm" data-fa="payno">Non</button>' : '<button type="button" class="ghost sm" data-fa="paydel" data-id="'+esc(x.id)+'"'+d+'>Retirer</button>')+'</td></tr>';
   });
   h+='<tr class="tot"><td>Total reçu</td><td class="n">'+fmt(paidOf(s))+'</td></tr><tr class="balr '+(b>0?'due':'ok')+'"><td>Balance restante</td><td class="n">'+fmt(b)+'</td></tr></tbody></table>';
-  h+='<label class="lbl" style="flex-direction:row;align-items:center;gap:10px"><input id="fnSch" type="checkbox" style="width:22px;height:22px;flex:none"'+(isBours(s)?' checked':'')+d+'> Boursier(ère) : ne paie rien</label>';
+  h+='<label class="lbl" style="flex-direction:row;align-items:center;gap:10px"><input id="fnSch" type="checkbox" style="width:22px;height:22px;flex:none"'+(isBours(s)?' checked':'')+d+(isAcct()?' disabled':'')+'> Boursier(ère) : ne paie rien</label>';
   h+='<form class="fadd" id="fnAdd" autocomplete="off"><label class="lbl">Date<input id="fnDate" type="date" value="'+todayIso()+'"'+d+'></label><label class="lbl">Montant reçu<input id="fnAmt" type="number" inputmode="decimal" min="0" step="0.01" placeholder="0.00"'+d+'></label><label class="lbl full">Note (reçu n°, paiement partiel…)<input id="fnNote" type="text" maxlength="80"'+d+'></label><button type="submit" class="btn full"'+d+'>Ajouter le paiement</button></form>';
   box.innerHTML=h;
 }
 $('#pfFin').addEventListener('change',function(e){
-  if(e.target.id==='fnSch'){ if(!pf.obj||cfgLocked()) return; var s0=pf.obj; if(!s0.f) s0.f={}; if(e.target.checked) s0.f.sch=true; else delete s0.f.sch; saveCfg(); renderFin(); return; }
-  var id=e.target.id; if((id!=='fnInsc'&&id!=='fnPart')||!pf.obj||cfgLocked()) return;
+  if(e.target.id==='fnSch'){ if(!pf.obj||!adm()) return; var s0=pf.obj; if(!s0.f) s0.f={}; if(e.target.checked) s0.f.sch=true; else delete s0.f.sch; saveCfg(); renderFin(); return; }
+  var id=e.target.id; if((id!=='fnInsc'&&id!=='fnPart')||!pf.obj||!adm()) return;
   var v=e.target.value.trim(), st=pf.obj, k=id==='fnInsc'?'insc':'part'; if(!st.f) st.f={};
   if(st.f.fee!=null){ st.f.insc=inscOf(st); st.f.part=partOf(st); delete st.f.fee; }
   if(v===''||!isFinite(Number(v))||Number(v)<0) delete st.f[k]; else st.f[k]=money(v);
@@ -1614,6 +1617,7 @@ $('#pfFin').addEventListener('submit',function(e){
 });
 $('#pfFin').addEventListener('click',function(e){
   var b=e.target.closest('button[data-fa]'); if(!b||cfgLocked()) return; var s=pf.obj; if(!s) return;
+  if(isAcct()){ toast("Seul l'administrateur peut retirer un paiement."); return; }
   if(b.dataset.fa==='paydel'){ pf.confirmPay=b.dataset.id; renderFin(); }
   else if(b.dataset.fa==='payno'){ pf.confirmPay=null; renderFin(); }
   else if(b.dataset.fa==='payyes'){ s.f.pay=s.f.pay.filter(function(x){return x.id!==b.dataset.id;}); pf.confirmPay=null; saveCfg(); renderFin(); toast('Paiement retiré.'); }
@@ -1627,7 +1631,7 @@ function renderFinances(){
   rpFill(); rcFill();
   var fi=$('#finInsc'), fp=$('#finPart'); if(document.activeElement!==fi) fi.value=cfg.fin.insc||''; if(document.activeElement!==fp) fp.value=cfg.fin.part||'';
   $('#finSum').textContent=fmt(cfg.fin.fee);
-  $('#finCur').value=cfg.fin.cur; fi.disabled=fp.disabled=cfgLocked(); $('#finCur').disabled=cfgLocked();
+  $('#finCur').value=cfg.fin.cur; fi.disabled=fp.disabled=!adm(); $('#finCur').disabled=!adm();
   var T={n:0,due:0,paid:0}, rows='';
   cfg.classes.forEach(function(c){
     var due=0,paid=0; c.students.forEach(function(s){ due+=feeOf(s); paid+=paidOf(s); });
@@ -1647,10 +1651,10 @@ function renderFinances(){
     return '<tr><td class="tl">'+esc(s.name)+(isBours(s)?' <span class="hint">(boursier)</span>':finPill(s))+'</td><td class="n">'+fmt(feeOf(s))+'</td><td class="n">'+fmt(paidOf(s))+'</td><td class="n">'+balHtml(balOf(s))+'</td><td><button type="button" class="ghost sm" data-fsid="'+esc(s.id)+'">Paiement</button> <button type="button" class="ghost sm" data-frecu="'+esc(s.id)+'">Reçu (PDF)</button></td></tr>';
   }).join(''));
 }
-function finFeeChange(k){ return function(e){ if(cfgLocked()) return; cfg.fin[k]=money(e.target.value); cfg.fin.fee=Math.round((cfg.fin.insc+cfg.fin.part)*100)/100; saveCfg(); renderAll(); toast('Frais enregistrés pour tous les élèves.'); }; }
+function finFeeChange(k){ return function(e){ if(!adm()) return; cfg.fin[k]=money(e.target.value); cfg.fin.fee=Math.round((cfg.fin.insc+cfg.fin.part)*100)/100; saveCfg(); renderAll(); toast('Frais enregistrés pour tous les élèves.'); }; }
 $('#finInsc').addEventListener('change',finFeeChange('insc'));
 $('#finPart').addEventListener('change',finFeeChange('part'));
-$('#finCur').addEventListener('change',function(e){ if(cfgLocked()) return; cfg.fin.cur=(e.target.value==='USD'||e.target.value==='HTD')?e.target.value:'HTG'; saveCfg(); renderAll(); });
+$('#finCur').addEventListener('change',function(e){ if(!adm()) return; cfg.fin.cur=(e.target.value==='USD'||e.target.value==='HTD')?e.target.value:'HTG'; saveCfg(); renderAll(); });
 $('#finCls').addEventListener('change',function(e){ pickClassSilent(e.target.value); renderFinances(); });
 function pickClassSilent(id){ cur.cls=id; rememberClass(); }
 $('#finRows').addEventListener('click',function(e){
@@ -1973,11 +1977,11 @@ function recuPdf(s,cl){
 function wa(v){ return String(v==null?'':v).replace(/[’‘]/g,"'").replace(/[“”]/g,'"').replace(/[—–]/g,'-').replace(/[\u2000-\u200B\u202F\u205F]/g,' ').replace(/[^\x09\x0A\x0D\x20-\x7E\xA0-\xFFŒœ]/g,'?'); }
 var FORM_LAYOUT={
   student:[['Inscription / Réinscription',[['regtype','regdate'],['admitted','prevschool']]],
-           ["Identité de l'élève",[['dob','blood'],['religion','phone'],['email','address']]],
+           ["Identité de l'élève",[['fname','lname'],['dob','blood'],['religion','phone'],['email','address']]],
            ['Parents / tuteurs',[['father','mother'],['guardian','resp'],['pphone','pemail']]],
            ["Urgence et sortie de l'élève",[['contact','cphone'],['pickup','pickphone'],['firstaid','medical']]],
            ['Note',[['note']]]],
-  teacher:[['Identité',[['dob','status'],['religion','phone'],['email','address']]],
+  teacher:[['Identité',[['fname','lname'],['dob','status'],['religion','phone'],['email','address']]],
            ['Formation et expérience',[['tschool','taught'],['qualif','normal'],['exp']]],
            ['Personne à contacter',[['contact','cphone']]]]
 };
@@ -2786,7 +2790,7 @@ $('#fdRows').addEventListener('click',function(e){
   renderPaie();
 });
 
-var ROLES=[['admin','Administrateur'],['saisie','Saisie des présences'],['lecture','Lecture seule']];
+var ROLES=[['admin','Administrateur'],['inscription','Inscriptions, présences et frais (sans suppression)'],['saisie','Saisie des présences'],['lecture','Lecture seule']];
 function sbErr(e){
   if(!e) return e; var code=String(e.code||'');
   if(code==='42501'||e.status===401||e.status===403||/row-level security|permission denied/i.test(e.message||'')) return {code:'invalid_argument',message:e.message};
@@ -2862,6 +2866,7 @@ function afterLogin(session){
     if(!role){ sbc.auth.signOut().then(function(){ showLogin("Ce compte n'a pas encore de rôle. Contactez l'administrateur."); }); return; }
     $('#login').hidden=true; store.sb=true; store.role=role;
     store.isOwner=(role==='admin'); store.readonly=(role==='lecture');
+    document.body.classList.toggle('acct',role==='inscription'); $('#tab-donnees').hidden=(role==='inscription');
     store.db=makeSbDb(sbc); store.mode='online'; days={};
     $('#logout').hidden=false; $('#pwBtn').hidden=false; $('#tab-users').hidden=!store.isOwner;
     renderAll(); subscribeCfg(); subscribeDay();
@@ -3039,8 +3044,8 @@ function renderDonnees(){
   if(list.indexOf(cfg.year)<0) list.push(cfg.year);
   list.sort();
   var sel=$('#yearSel'); sel.innerHTML=list.map(function(v){ return '<option'+(v===cfg.year?' selected':'')+'>'+v+'</option>'; }).join('');
-  sel.disabled=cfgLocked(); $('#newYear').disabled=cfgLocked();
-  $('#bkYes').disabled=cfgLocked();
+  sel.disabled=!adm(); $('#newYear').disabled=!adm();
+  $('#bkYes').disabled=!adm();
 }
 function saveFile(name,data,mime){
   var p=(window.claude&&window.claude.use)?window.claude.use('downloads'):null;
@@ -3065,11 +3070,11 @@ function allDays(){
 function csvCell(v){ v=String(trs(v==null?'':v)); return /[;"\n\r]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v; }
 function csvText(rows){ return '﻿'+rows.map(function(r){ return r.map(csvCell).join(';'); }).join('\r\n'); }
 function stamp(){ return todayIso(); }
-$('#yearSel').addEventListener('change',function(e){ if(cfgLocked()) return; cfg.year=e.target.value; saveCfg(); renderAll(); toast('Année scolaire : '+cfg.year); });
+$('#yearSel').addEventListener('change',function(e){ if(!adm()) return; cfg.year=e.target.value; saveCfg(); renderAll(); toast('Année scolaire : '+cfg.year); });
 $('#newYear').addEventListener('click',function(){ $('#yearConfirm').hidden=false; });
 $('#newYearNo').addEventListener('click',function(){ $('#yearConfirm').hidden=true; });
 $('#newYearYes').addEventListener('click',function(){
-  if(cfgLocked()) return;
+  if(!adm()) return;
   var a=parseInt(cfg.year,10)+1; cfg.year=a+'-'+(a+1); saveCfg(); $('#yearConfirm').hidden=true; renderAll(); renderDonnees(); toast('Nouvelle année scolaire : '+cfg.year);
 });
 $('#bkSave').addEventListener('click',function(){
@@ -3122,7 +3127,7 @@ $('#bkFile').addEventListener('change',function(e){
 });
 $('#bkNo').addEventListener('click',function(){ pendingBk=null; $('#bkConfirm').hidden=true; });
 $('#bkYes').addEventListener('click',function(){
-  var o=pendingBk; if(!o||cfgLocked()) return;
+  var o=pendingBk; if(!o||!adm()) return;
   cfg=normalizeCfg(o.cfg); cfg.example=false;
   if(!cfg.classes.some(function(c){return c.id===cur.cls;})) cur.cls=cfg.classes[0].id;
   var d=o.days&&typeof o.days==='object'?o.days:{};
@@ -3156,19 +3161,19 @@ $('#sender').addEventListener('input',function(e){
 $('#msg').addEventListener('input',function(){ msgDirty=true; $('#resetMsg').hidden=false; updateLinks(); });
 $('#resetMsg').addEventListener('click',function(){ msgDirty=false; renderEnvoyer(); });
 $('#recips').addEventListener('input',function(e){
-  if(cfgLocked()) return;
+  if(!adm()) return;
   var t=e.target; if(!t.dataset||!t.dataset.f) return;
   var rec=recOf(t); if(!rec) return;
   rec[t.dataset.f]=t.value; updateLinks();
 });
 $('#recips').addEventListener('change',function(e){
-  if(cfgLocked()) return;
+  if(!adm()) return;
   var t=e.target; if(!t.dataset||!t.dataset.f) return;
   var rec=recOf(t); if(!rec) return;
   rec[t.dataset.f]=t.value.trim().replace(/\s+/g,' '); saveCfg();
 });
 $('#recips').addEventListener('click',function(e){
-  if(cfgLocked()) return;
+  if(!adm()) return;
   var b=e.target.closest('button[data-ract]');
   if(b){
     var holder=b.closest('[data-other]'), o=holder?cfg.recip.others[+holder.dataset.other]:null; if(!o) return;
@@ -3189,7 +3194,7 @@ $('#recips').addEventListener('submit',function(e){
   if(e.target.id!=='addOther') return;
   e.preventDefault();
   var n=$('#oName').value.trim().replace(/\s+/g,' '), w=$('#oWa').value.trim();
-  if(cfgLocked()) return;
+  if(!adm()) return;
   if(!n||!digits(w)){ toast('Indiquez un nom et un numéro WhatsApp.'); return; }
   cfg.recip.others.push({id:uid(),name:n,wa:w});
   $('#oName').value=''; $('#oWa').value='';
