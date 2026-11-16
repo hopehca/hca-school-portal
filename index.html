@@ -721,7 +721,7 @@ tr.subrow>td{padding:0 10px 12px 10px;text-align:left}
     </div>
   </section>
 </div>
-<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V98 · 16/11/2026 · Paiement partiel avec reste affiché, modifier/retirer sur chaque ligne, paie confiée à, effacer le montant envoyé d'un mois, bouton « ouvrir » réparé, PDF profil plus grand</p>
+<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V99 · 16/11/2026 · Correction directe : le montant et la date de chaque paiement se changent sur place, sans bouton Modifier</p>
 <div id="toast" class="toast" role="status" hidden></div>
 <div id="printReport" aria-hidden="true"></div>
 
@@ -3369,6 +3369,11 @@ var rgAsk=null;
 function rgPays(sid,m){ return priv.pay.filter(function(p){return p.sid===sid&&p.m===m;}); }
 function rgAdv(sid,m){ return sumA(rgPays(sid,m).filter(function(p){return p.k==='avance';})); }
 function rgRate(m){ var r=(priv.rt||{})[m]; return r==null?100:r; }
+function rgLine(p){
+  var id=esc(p.id);
+  return '<div class="payln"><input type="date" data-rg="pd" data-pid="'+id+'" value="'+esc(p.d)+'" aria-label="Date du paiement"><input type="number" inputmode="decimal" min="0" step="0.01" data-rg="pa" data-pid="'+id+'" value="'+p.a+'" style="width:100px" aria-label="Montant">'+(p.k==='avance'?' <b>Avance</b>':'')
+    +(pvc===p.id?' <button type="button" class="rm" data-pp="yes" data-id="'+id+'">Oui, retirer</button> <button type="button" class="ghost sm" data-pp="no">Non</button>':' <button type="button" class="ghost sm" data-pp="rcp" data-id="'+id+'">Reçu</button> <button type="button" class="ghost sm" data-pp="snd" data-id="'+id+'">Envoyer</button> <button type="button" class="rm" data-pp="del" data-id="'+id+'" aria-label="Retirer ce paiement">Retirer</button>')+'</div>';
+}
 function rgRender(){
   var tb=document.getElementById('rgRows'); if(!tb) return;
   var m=$('#ppMon').value; if(!$('#rgDate').value) $('#rgDate').value=todayIso();
@@ -3385,7 +3390,7 @@ function rgRender(){
       +(r.paid>0?'<br><span class="hint">Payé '+fmt(r.paid)+(adv>0?' (dont avance '+fmt(adv)+')':'')+' · le '+esc(shortDate(last))+'</span>':'')
       +(r.paid>0&&r.bal>0?'<br><b>Reste à payer : '+fmt(r.bal)+'</b>':'')
       +(ov[r.s.id]!=null?'<br><span class="hint">Montant modifié (salaire de base '+fmt(r.s.pay)+')</span>':(rt<100&&r.due>0?'<br><span class="hint">Taux '+rt+' % (salaire de base '+fmt(r.s.pay)+')</span>':''))
-      +(ps.length?'<div>'+ps.slice().sort(function(a,b){return a.d.localeCompare(b.d);}).map(ppLineHtml).join('')+'</div>':'')
+      +(ps.length?'<div>'+ps.slice().sort(function(a,b){return a.d.localeCompare(b.d);}).map(rgLine).join('')+'</div>':'')
       +'<br><button type="button" class="ghost sm" data-rg="part" data-id="'+id+'">Paiement partiel</button> <button type="button" class="ghost sm" data-rg="adv" data-id="'+id+'">+ Avance</button> <button type="button" class="ghost sm" data-rg="slip" data-id="'+id+'">Fiche (PDF)</button> <button type="button" class="ghost sm" data-rg="wa" data-id="'+id+'">Fiche WhatsApp</button></td>'
       +'<td class="n"><input type="number" inputmode="decimal" min="0" step="0.01" data-rg="due" data-id="'+id+'" value="'+r.due+'" style="width:100px" aria-label="Salaire dû"><br>'
       +'<select data-rg="pct" data-id="'+id+'" aria-label="Pourcentage du salaire"><option value="">% du salaire…</option><option value="100">100 %</option><option value="75">75 %</option><option value="50">50 %</option><option value="25">25 %</option><option value="0">0 %</option></select></td>'
@@ -3416,6 +3421,13 @@ function rgSetRate(m,v){
 }
 $('#rgRate').addEventListener('click',function(e){ var b=e.target.closest('button[data-rt]'); if(b) rgSetRate($('#ppMon').value,b.dataset.rt); });
 $('#rgRateIn').addEventListener('change',function(e){ if(e.target.value!=='') rgSetRate($('#ppMon').value,e.target.value); });
+$('#rgRows').addEventListener('change',function(e){
+  var t0=e.target, pid=t0.dataset&&t0.dataset.pid; if(!pid) return; if(!canPriv()||!privReady) return;
+  var pp=priv.pay.filter(function(x){return x.id===pid;})[0]; if(!pp) return;
+  if(t0.dataset.rg==='pa'){ var a=money(t0.value); if(a<=0){ toast('Le montant doit être supérieur à 0. Pour supprimer, utilisez « Retirer ».'); renderPaie(); return; } pp.a=a; }
+  else if(t0.dataset.rg==='pd'){ if(!t0.value){ renderPaie(); return; } pp.d=t0.value; }
+  pp.snt=null; privSave(); renderPaie(); toast('Correction enregistrée.');
+});
 $('#rgRows').addEventListener('change',function(e){
   var t=e.target, sid=t.dataset&&t.dataset.id; if(!sid||!canPriv()||!privReady) return;
   var m=$('#ppMon').value, st=staffOf(sid); if(!st) return;
