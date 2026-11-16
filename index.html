@@ -536,7 +536,8 @@ tr.subrow>td{padding:0 10px 12px 10px;text-align:left}
         <h2>Paie du mois</h2>
         <label class="lbl" for="ppMon">Mois travaillé (la paie est pour ce mois)<select id="ppMon" class="drow"></select></label>
         <label class="lbl" for="rgDate">Date du paiement (pour les cases que vous cochez)<input id="rgDate" type="date"></label>
-        <p class="hint">Devise : <b id="rgCur"></b>. Le salaire du mois se règle ici : taux pour tout le monde (ex. 50 % en cas de fermeture), puis modifiable ligne par ligne. Cochez « Payé » pour payer le reste dû. « + Avance » enregistre un prêt/avance.</p>
+        <label class="lbl" for="rgBy">Paie du mois confiée à (personne responsable de la distribuer)<input id="rgBy" type="text" maxlength="60" list="rgByL" placeholder="Nom"></label><datalist id="rgByL"></datalist>
+        <p class="hint">Devise : <b id="rgCur"></b>. Le salaire du mois se règle ici : taux pour tout le monde (ex. 50 % en cas de fermeture), puis modifiable ligne par ligne. Cochez « Payé » pour payer le reste dû. « Paiement partiel » permet de payer en deux fois (le reste reste affiché). « + Avance » enregistre un prêt/avance.</p>
         <div class="payln" id="rgRate"><span class="grow"><b>Taux du mois</b> (tous les salaires)</span><button type="button" class="ghost sm" data-rt="100">100 %</button><button type="button" class="ghost sm" data-rt="75">75 %</button><button type="button" class="ghost sm" data-rt="50">50 %</button><input type="number" inputmode="decimal" min="0" max="100" step="1" id="rgRateIn" style="width:80px" aria-label="Taux en pourcentage"> %</div>
         <label class="lbl" for="ppView" style="display:none">Affichage<select id="ppView" class="drow"></select></label>
         <div class="fsum" id="ppTot"></div>
@@ -720,7 +721,7 @@ tr.subrow>td{padding:0 10px 12px 10px;text-align:left}
     </div>
   </section>
 </div>
-<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V97 · 15/11/2026 · Paie variable : taux du mois (ex. 50 %) et salaire modifiable par employé, avances/prêts, fiche individuelle à envoyer sur WhatsApp, mois travaillé indiqué sur tous les documents</p>
+<p class="hint" id="verTag" style="text-align:center;margin:0 0 40px">Version V98 · 16/11/2026 · Paiement partiel avec reste affiché, modifier/retirer sur chaque ligne, paie confiée à, effacer le montant envoyé d'un mois, bouton « ouvrir » réparé, PDF profil plus grand</p>
 <div id="toast" class="toast" role="status" hidden></div>
 <div id="printReport" aria-hidden="true"></div>
 
@@ -1994,46 +1995,49 @@ function formPdf(kind,obj,name,cls,blank){
       function T(s,x,top,size,font,col){ page.drawText(wa(trs(s)),{x:x,y:H-top-size,size:size,font:font||fr,color:col||rgb(.1,.13,.2)}); }
       function lbl(key){ var l=lab[key]||key; return l+(typ[key]==='date'?' (jj/mm/aaaa)':''); }
       function fld(key,x,top,w,label,val){
-        T(label,x,top,7,fr,rgb(.43,.47,.55));
+        T(label,x,top,9.5,fr,rgb(.25,.3,.4));
         var t=typ[key]||'text', v=val==null?(o0[key]||''):val;
-        var opts={x:x,y:H-top-10-17,width:w,height:17,borderWidth:.7,borderColor:rgb(.7,.75,.85),backgroundColor:rgb(.97,.98,1)};
+        var opts={x:x,y:H-top-13-22,width:w,height:22,borderWidth:.9,borderColor:rgb(.7,.75,.85),backgroundColor:rgb(.97,.98,1)};
         if(t==='select'){
           var dd=form.createDropdown(key), os=(opt[key]||[]).filter(function(z){return z;}).map(function(z){return wa(trs(z));});
           dd.addOptions(os); var tv=wa(trs(v)); if(v&&os.indexOf(tv)>=0) dd.select(tv);
-          dd.addToPage(page,Object.assign({font:fr},opts)); try{ dd.setFontSize(9); }catch(e){}
+          dd.addToPage(page,Object.assign({font:fr},opts)); try{ dd.setFontSize(11.5); }catch(e){}
         } else {
           var tf=form.createTextField(key); if(t==='date'&&/^\d{4}-\d{2}-\d{2}$/.test(v)) v=v.split('-').reverse().join('/');
-          if(v) tf.setText(wa(v)); tf.addToPage(page,Object.assign({font:fr},opts)); try{ tf.setFontSize(9); }catch(e){}
+          if(v) tf.setText(wa(v)); tf.addToPage(page,Object.assign({font:fr},opts)); try{ tf.setFontSize(11.5); }catch(e){}
         }
       }
       page.drawImage(logo,{x:W-M-50,y:H-22-50,width:50,height:50});
-      T('HOPE CHRISTIAN ACADEMY  -  '+cfg.year,M,26,9,fb,rgb(.09,.25,.55));
-      T(isS?"Profil de l'élève":'Profil du professeur',M,40,19,fb);
-      T(isS?'Inscription / Réinscription':'Fiche de renseignements',M,64,10,fr,rgb(.3,.35,.45));
+      T('HOPE CHRISTIAN ACADEMY  -  '+cfg.year,M,24,10.5,fb,rgb(.09,.25,.55));
+      T(isS?"Profil de l'élève":'Profil du professeur',M,40,22,fb);
+      T(isS?'Inscription / Réinscription':'Fiche de renseignements',M,64,12,fr,rgb(.3,.35,.45));
       var top=88, pw=72, ph=78;
       page.drawRectangle({x:W-M-pw,y:H-top-ph,width:pw,height:ph,borderColor:rgb(.7,.75,.85),borderWidth:.8,color:rgb(.97,.98,1)});
-      if(img) page.drawImage(img,{x:W-M-pw+1,y:H-top-ph+1,width:pw-2,height:ph-2}); else T('Photo',W-M-pw+22,top+ph/2-4,8,fr,rgb(.5,.55,.65));
+      if(img) page.drawImage(img,{x:W-M-pw+1,y:H-top-ph+1,width:pw-2,height:ph-2}); else T('Photo',W-M-pw+20,top+ph/2-4,10,fr,rgb(.5,.55,.65));
       var aw=CW-pw-12, hw=(aw-12)/2;
       lab.name=isS?"Nom complet de l'élève":'Nom complet'; lab.klass=isS?'Classe actuelle':'Classe'; lab.year='Année scolaire';
       fld('name',M,top,aw,trs(lab.name),blank?'':name);
-      fld('klass',M,top+38,hw,trs(lab.klass),blank?'':cls);
-      fld('year',M+hw+12,top+38,hw,trs(lab.year),cfg.year);
-      var y=top+ph+14, RH=isS?34:44;
+      fld('klass',M,top+44,hw,trs(lab.klass),blank?'':cls);
+      fld('year',M+hw+12,top+44,hw,trs(lab.year),cfg.year);
+      var y=top+ph+16, RH=isS?42:50;
       FORM_LAYOUT[isS?'student':'teacher'].forEach(function(sec){
-        T(sec[0].toUpperCase(),M,y,8.5,fb,rgb(.09,.25,.55)); y+=13;
+        if(y+13+5+RH>742){ page=pdf.addPage([612,792]); y=40; }
+        T(sec[0].toUpperCase(),M,y,11,fb,rgb(.09,.25,.55)); y+=16;
         page.drawLine({start:{x:M,y:H-y},end:{x:M+CW,y:H-y},thickness:.6,color:rgb(.8,.84,.9)}); y+=5;
         sec[1].forEach(function(row){
+          if(y+RH>742){ page=pdf.addPage([612,792]); y=40; }
           var n=row.length, w=(CW-12*(n-1))/n;
           row.forEach(function(k,i){ fld(k,M+i*(w+12),y,w,trs(lbl(k))); });
           y+=RH;
         });
         y+=4;
       });
-      var sy=Math.max(y+8,720);
+      if(y+50>742){ page=pdf.addPage([612,792]); y=40; }
+      var sy=Math.max(y+14,720);
       page.drawLine({start:{x:M,y:H-sy},end:{x:M+250,y:H-sy},thickness:.6,color:rgb(.4,.45,.55)});
       page.drawLine({start:{x:W-M-150,y:H-sy},end:{x:W-M,y:H-sy},thickness:.6,color:rgb(.4,.45,.55)});
-      T(isS?'Signature du parent ou tuteur':'Signature',M,sy+3,7.5,fr,rgb(.43,.47,.55)); T('Date',W-M-150,sy+3,7.5,fr,rgb(.43,.47,.55));
-      T('Hope Christian Academy - Moleard, Haïti - '+(blank?'Formulaire à remplir':'Document à remplir et à enregistrer'),M,770,7,fr,rgb(.55,.6,.7));
+      T(isS?'Signature du parent ou tuteur':'Signature',M,sy+3,10,fr,rgb(.25,.3,.4)); T('Date',W-M-150,sy+3,10,fr,rgb(.25,.3,.4));
+      T('Hope Christian Academy - Moleard, Haïti - '+(blank?'Formulaire à remplir':'Document à remplir et à enregistrer'),M,772,8.5,fr,rgb(.45,.5,.6));
       return pdf.save();
     });
   });
@@ -2061,8 +2065,8 @@ $('#pfPdf').addEventListener('click',function(){
   defs.forEach(function(f){
     if(f[0]==='sec'){ pdfNeed(o,40); o.y+=8; d.setFont('helvetica','bold'); d.setFontSize(9); d.setTextColor(75,88,114); d.text(pdfTxt(f[1]).toUpperCase(),M,o.y+8); o.y+=14; d.setDrawColor(211,218,230); d.line(M,o.y,M+CW,o.y); o.y+=6; return; }
     pdfNeed(o,22); var v=o0[f[0]]||'';
-    d.setFont('helvetica','normal'); d.setFontSize(10); d.setTextColor(110,120,140); d.text(pdfTxt(f[1]),M,o.y+10);
-    d.setFont('helvetica','bold'); d.setFontSize(11); d.setTextColor(17,27,46); d.text(d.splitTextToSize(pdfTxt(v||'-'),CW-210)[0],M+210,o.y+10); o.y+=20;
+    d.setFont('helvetica','normal'); d.setFontSize(11.5); d.setTextColor(75,85,105); d.text(pdfTxt(f[1]),M,o.y+11);
+    d.setFont('helvetica','bold'); d.setFontSize(12.5); d.setTextColor(17,27,46); d.text(d.splitTextToSize(pdfTxt(v||'-'),CW-210)[0],M+210,o.y+11); o.y+=24;
   });
   if(isS){
     var s=pf.obj, pay=((s.f&&s.f.pay)||[]).slice().sort(function(a,b){return (a.d||'').localeCompare(b.d||'');});
@@ -2221,6 +2225,7 @@ function cleanPriv(o){
     staff:A(o.staff).slice(0,300).map(function(x){ return {id:String(x&&x.id||uid()),name:String(x&&x.name||'').slice(0,60),role:String(x&&x.role||'').slice(0,60),ph:String(x&&x.ph||'').slice(0,30),pay:money(x&&x.pay),off:!!(x&&x.off),hid:!!(x&&x.hid)}; }).filter(function(x){return x.name;}),
     rt:(function(){ var r={}, t=(o.rt&&typeof o.rt==='object')?o.rt:{}; Object.keys(t).slice(0,120).forEach(function(k){ var v=Number(t[k]); if(/^\d{4}-\d{2}$/.test(k)&&isFinite(v)&&v>=0&&v<100) r[k]=Math.round(v*100)/100; }); return r; })(),
     ov:(function(){ var r={}, t=(o.ov&&typeof o.ov==='object')?o.ov:{}; Object.keys(t).slice(0,120).forEach(function(k){ var q=t[k]; if(!/^\d{4}-\d{2}$/.test(k)||!q||typeof q!=='object') return; var z={}, n=0; Object.keys(q).slice(0,300).forEach(function(sid){ var v=Number(q[sid]); if(isFinite(v)&&v>=0){ z[String(sid).slice(0,60)]=Math.round(v*100)/100; n++; } }); if(n) r[k]=z; }); return r; })(),
+    pb:(function(){ var r={}, t=(o.pb&&typeof o.pb==='object')?o.pb:{}; Object.keys(t).slice(0,120).forEach(function(k){ var v=String(t[k]||'').replace(/\s+/g,' ').trim().slice(0,60); if(/^\d{4}-\d{2}$/.test(k)&&v) r[k]=v; }); return r; })(),
     zm:A(o.zm).map(String).filter(function(x,i,a){ return /^\d{4}-\d{2}$/.test(x)&&a.indexOf(x)===i; }).slice(0,60),
     cats:A(o.cats).slice(0,60).map(function(c){ return String(c||'').replace(/\s+/g,' ').trim().slice(0,40); }).filter(function(c,i,a){ return c&&a.indexOf(c)===i; }),
     subs:(function(){ var r={}, t=(o.subs&&typeof o.subs==='object')?o.subs:{}; Object.keys(t).slice(0,80).forEach(function(k){ var l=A(t[k]).map(function(c){ return String(c||'').replace(/\s+/g,' ').trim().slice(0,40); }).filter(function(c,i,a){ return c&&a.indexOf(c)===i; }).slice(0,60); if(l.length) r[String(k).slice(0,40)]=l; }); return r; })(),
@@ -2443,7 +2448,7 @@ function staffOf(id){ return priv.staff.filter(function(s){return s.id===id;})[0
 function isHidPay(p){ var s=staffOf(p.sid); return !!(s&&s.hid); }
 function usedIn(m){ return sumA(priv.pay.filter(function(p){return p.m===m;})); }
 function sentIn(m){ return sumA(priv.fund.filter(function(f){return f.m===m;})); }
-var stOpen={}, pve=null, fve=null;
+var stOpen={}, pve=null, fve=null, fclr=null;
 function staffCards(list,empty){
   return list.length?list.map(function(s){
     return '<details class="rcard" data-st="'+esc(s.id)+'"'+(stOpen[s.id]?' open':'')+'><summary><b>'+esc(s.name)+'</b>'+(s.role?' <span class="hint">· '+esc(s.role)+'</span>':'')+(s.off?' <span class="hint">(ancien)</span>':'')+'</summary><div class="rbody"><div class="rgrid">'
@@ -2747,7 +2752,7 @@ function renderFunds(){
   }).join('')+'<tr class="mhead"><th scope="row" class="tl">Total envoyé - '+esc(monthLabel(m+'-01'))+'</th><th class="n">'+fmt(sent)+'</th><th></th></tr>':'<tr><td class="tl hint" colspan="3">Aucun montant envoyé ce mois-ci.</td></tr>');
   var ms=schoolMonths(priv.pay.map(function(x){return x.m;}).concat(priv.fund.map(function(x){return x.m;}))), TS=0, TU=0;
   setH($('#fdYr'),ms.map(function(mm){ var se=sentIn(mm), us=usedIn(mm); TS+=se; TU+=us;
-    return '<tr data-mm="'+esc(mm)+'" style="cursor:pointer"><td class="tl"><button type="button" class="ghost sm" data-open="'+esc(mm)+'">'+esc(monthLabel(mm+'-01'))+' · ouvrir</button></td><td class="n">'+fmt(se)+'</td><td class="n">'+fmt(us)+'</td><td class="n">'+fmt(Math.round((se-us)*100)/100)+'</td></tr>';
+    return '<tr data-mm="'+esc(mm)+'" style="cursor:pointer"><td class="tl"><button type="button" class="ghost sm" data-open="'+esc(mm)+'">'+esc(monthLabel(mm+'-01'))+' · ouvrir</button>'+(se>0?(fclr===mm?'<br><b>Effacer les '+fmt(se)+' envoyés de '+esc(monthLabel(mm+'-01'))+' ?</b> <button type="button" class="rm" data-fclr="yes" data-mm="'+esc(mm)+'">Oui, effacer</button> <button type="button" class="ghost sm" data-fclr="no">Non</button>':'<br><button type="button" class="ghost sm" data-fclr="ask" data-mm="'+esc(mm)+'">Effacer le montant envoyé</button>'):'')+'</td><td class="n">'+fmt(se)+'</td><td class="n">'+fmt(us)+'</td><td class="n">'+fmt(Math.round((se-us)*100)/100)+'</td></tr>';
   }).join('')+'<tr class="mhead"><th scope="row" class="tl">Total de l\'année</th><th class="n">'+fmt(Math.round(TS*100)/100)+'</th><th class="n">'+fmt(Math.round(TU*100)/100)+'</th><th class="n">'+fmt(Math.round((TS-TU)*100)/100)+'</th></tr>');
 }
 $('#fdForm').addEventListener('submit',function(e){
@@ -2756,6 +2761,13 @@ $('#fdForm').addEventListener('submit',function(e){
   var d=$('#fdDate').value||todayIso();
   priv.fund.push({id:uid(),m:mOf('#fdForM'),d:d,a:a,n:$('#fdNote').value.trim().replace(/\s+/g,' ').slice(0,80)});
   $('#fdAmt').value=''; $('#fdNote').value=''; privSave(); renderPaie(); toast('Montant envoyé enregistré.');
+});
+$('#fdYr').addEventListener('click',function(e){
+  var o=e.target.closest('button[data-open]'); if(o){ try{ $('#ppMon').value=o.dataset.open; }catch(_){} renderPaie(); try{ $('#ppPay').scrollIntoView({block:'start'}); }catch(_){} return; }
+  var b=e.target.closest('button[data-fclr]'); if(!b||!canPriv()||!privReady) return;
+  if(b.dataset.fclr==='ask') fclr=b.dataset.mm; else if(b.dataset.fclr==='no') fclr=null;
+  else if(b.dataset.fclr==='yes'){ var mm=b.dataset.mm; priv.fund=priv.fund.filter(function(x){return x.m!==mm;}); fclr=null; privSave(); toast('Montant envoyé de '+monthLabel(mm+'-01')+' effacé. Les paiements ne sont pas touchés.'); }
+  renderPaie();
 });
 $('#fdRows').addEventListener('click',function(e){
   var b=e.target.closest('button[data-fd]'); if(!b||!canPriv()) return;
@@ -3361,6 +3373,8 @@ function rgRender(){
   var tb=document.getElementById('rgRows'); if(!tb) return;
   var m=$('#ppMon').value; if(!$('#rgDate').value) $('#rgDate').value=todayIso();
   $('#rgCur').textContent=curLbl();
+  var by=$('#rgBy'); if(by&&document.activeElement!==by) by.value=(priv.pb||{})[m]||'';
+  var bl=$('#rgByL'); if(bl) setH(bl,priv.staff.filter(function(x){return !x.off&&!x.hid;}).map(function(x){return '<option value="'+esc(x.name)+'">';}).join(''));
   var rt=rgRate(m), ri=$('#rgRateIn'); if(ri&&document.activeElement!==ri) ri.value=rt;
   Array.prototype.forEach.call(document.querySelectorAll('#rgRate button[data-rt]'),function(bt){ bt.className=(Number(bt.dataset.rt)===rt?'btn':'ghost')+' sm'; });
   var rows=payRows(m), ov=(priv.ov||{})[m]||{};
@@ -3371,12 +3385,13 @@ function rgRender(){
       +(r.paid>0?'<br><span class="hint">Payé '+fmt(r.paid)+(adv>0?' (dont avance '+fmt(adv)+')':'')+' · le '+esc(shortDate(last))+'</span>':'')
       +(r.paid>0&&r.bal>0?'<br><b>Reste à payer : '+fmt(r.bal)+'</b>':'')
       +(ov[r.s.id]!=null?'<br><span class="hint">Montant modifié (salaire de base '+fmt(r.s.pay)+')</span>':(rt<100&&r.due>0?'<br><span class="hint">Taux '+rt+' % (salaire de base '+fmt(r.s.pay)+')</span>':''))
-      +'<br><button type="button" class="ghost sm" data-rg="adv" data-id="'+id+'">+ Avance</button> <button type="button" class="ghost sm" data-rg="slip" data-id="'+id+'">Fiche (PDF)</button> <button type="button" class="ghost sm" data-rg="wa" data-id="'+id+'">Fiche WhatsApp</button></td>'
+      +(ps.length?'<div>'+ps.slice().sort(function(a,b){return a.d.localeCompare(b.d);}).map(ppLineHtml).join('')+'</div>':'')
+      +'<br><button type="button" class="ghost sm" data-rg="part" data-id="'+id+'">Paiement partiel</button> <button type="button" class="ghost sm" data-rg="adv" data-id="'+id+'">+ Avance</button> <button type="button" class="ghost sm" data-rg="slip" data-id="'+id+'">Fiche (PDF)</button> <button type="button" class="ghost sm" data-rg="wa" data-id="'+id+'">Fiche WhatsApp</button></td>'
       +'<td class="n"><input type="number" inputmode="decimal" min="0" step="0.01" data-rg="due" data-id="'+id+'" value="'+r.due+'" style="width:100px" aria-label="Salaire dû"><br>'
       +'<select data-rg="pct" data-id="'+id+'" aria-label="Pourcentage du salaire"><option value="">% du salaire…</option><option value="100">100 %</option><option value="75">75 %</option><option value="50">50 %</option><option value="25">25 %</option><option value="0">0 %</option></select></td>'
       +'<td><input type="checkbox" data-rg="chk" data-id="'+id+'"'+(full?' checked':'')+' aria-label="Payé" style="width:26px;height:26px"></td></tr>';
     if(rgAsk&&rgAsk.t==='undo'&&rgAsk.sid===r.s.id) line+='<tr><td colspan="4" class="tl"><b>Retirer les paiements de '+esc(r.s.name)+' ('+fmt(r.paid-adv)+', sans les avances) ?</b> <button type="button" class="rm" data-rgc="yes">Oui, retirer</button> <button type="button" class="ghost sm" data-rgc="no">Non</button></td></tr>';
-    if(rgAsk&&rgAsk.t==='adv'&&rgAsk.sid===r.s.id) line+='<tr><td colspan="4" class="tl"><b>Avance / prêt pour '+esc(r.s.name)+' (déduit du salaire de '+esc(monthLabel(m+'-01'))+')</b><div class="payln"><input type="number" inputmode="decimal" min="0" step="0.01" id="rgAdvA" placeholder="Montant" style="width:110px"><input type="date" id="rgAdvD" value="'+esc($('#rgDate').value||todayIso())+'"><input type="text" id="rgAdvN" maxlength="80" placeholder="Note (ex. urgence)"><button type="button" class="btn sm" data-rgc="advsave">Enregistrer l’avance</button> <button type="button" class="ghost sm" data-rgc="no">Annuler</button></div></td></tr>';
+    if(rgAsk&&rgAsk.t==='adv'&&rgAsk.sid===r.s.id) line+='<tr><td colspan="4" class="tl"><b>'+(rgAsk.k==='avance'?'Avance / prêt pour '+esc(r.s.name)+' (déduit du salaire de '+esc(monthLabel(m+'-01'))+')':'Paiement partiel pour '+esc(r.s.name)+' · reste dû : '+fmt(Math.max(0,r.bal)))+'</b><div class="payln"><input type="number" inputmode="decimal" min="0" step="0.01" id="rgAdvA" placeholder="Montant" style="width:110px"><input type="date" id="rgAdvD" value="'+esc($('#rgDate').value||todayIso())+'"><input type="text" id="rgAdvN" maxlength="80" placeholder="Note (ex. urgence)"><button type="button" class="btn sm" data-rgc="advsave">Enregistrer</button> <button type="button" class="ghost sm" data-rgc="no">Annuler</button></div></td></tr>';
     return line;
   }).join(''):'<tr><td colspan="4" class="hint">Aucun(e) employé(e) pour ce mois.</td></tr>');
   var bar='';
@@ -3423,7 +3438,7 @@ function rgClick(e){
   if(b.dataset.rg){
     var st=staffOf(b.dataset.id); if(!st) return;
     if(b.dataset.rg==='slip') slipPdf(st,m); else if(b.dataset.rg==='wa') slipPdf(st,m,true);
-    else if(b.dataset.rg==='adv'){ rgAsk={t:'adv',sid:st.id}; rgRender(); }
+    else if(b.dataset.rg==='adv'||b.dataset.rg==='part'){ rgAsk={t:'adv',sid:st.id,k:b.dataset.rg==='adv'?'avance':''}; rgRender(); }
     return;
   }
   var ask=rgAsk; rgAsk=null; var c=b.dataset.rgc;
@@ -3437,10 +3452,10 @@ function rgClick(e){
   } else if(c==='advsave'&&ask.t==='adv'){
     var a=money($('#rgAdvA')&&$('#rgAdvA').value), dd=($('#rgAdvD')&&$('#rgAdvD').value)||todayIso(), nn=(($('#rgAdvN')&&$('#rgAdvN').value)||'').trim().replace(/\s+/g,' ').slice(0,80);
     if(a<=0){ rgAsk=ask; rgRender(); toast('Entrez un montant supérieur à 0.'); return; }
-    priv.pay.push({id:uid(),sid:ask.sid,m:m,d:dd,a:a,n:nn,no:nextPayNo(dd),k:'avance'}); privSave(); renderPaie(); toast('Avance enregistrée.');
+    priv.pay.push({id:uid(),sid:ask.sid,m:m,d:dd,a:a,n:nn||(ask.k==='avance'?'':'Paiement partiel'),no:nextPayNo(dd),k:ask.k==='avance'?'avance':''}); privSave(); renderPaie(); toast(ask.k==='avance'?'Avance enregistrée.':'Paiement partiel enregistré. Le reste dû est affiché sur la ligne.');
   } else rgRender();
 }
-$('#rgRows').addEventListener('click',rgClick); $('#rgBar').addEventListener('click',rgClick);
+$('#rgRows').addEventListener('click',ppHistClick); $('#rgRows').addEventListener('click',rgClick); $('#rgBar').addEventListener('click',rgClick);
 $('#rgAll').addEventListener('click',function(){
   if(!canPriv()||!privReady) return;
   var m=$('#ppMon').value, k=payRows(m).filter(function(r){return r.bal>0&&r.due>0;});
@@ -3448,6 +3463,10 @@ $('#rgAll').addEventListener('click',function(){
   rgAsk={t:'all'}; rgRender(); try{ $('#rgBar').scrollIntoView({block:'center'}); }catch(_){}
 });
 $('#rgDate').addEventListener('change',rgRender);
+$('#rgBy').addEventListener('change',function(e){
+  if(!canPriv()||!privReady) return; var m=$('#ppMon').value, v=e.target.value.replace(/\s+/g,' ').trim().slice(0,60);
+  priv.pb=priv.pb||{}; if(v) priv.pb[m]=v; else delete priv.pb[m]; privSave(); toast(v?('Paie de '+monthLabel(m+'-01')+' confiée à '+v+'.'):'Responsable retiré.');
+});
 $('#rgPdf').addEventListener('click',function(){
   var m=$('#ppMon').value, rows=payRows(m), J=window.jspdf&&window.jspdf.jsPDF; if(!J){ pdfNoLib(); return; }
   var d=new J({unit:'pt',format:'letter',orientation:'landscape'}), PW=792, PH=612, M=36, CW=PW-2*M, rt=rgRate(m);
@@ -3458,7 +3477,7 @@ $('#rgPdf').addEventListener('click',function(){
   function head(first){
     var y=first?30:M;
     if(first){ try{ d.addImage(LOGO,'PNG',M,22,48,48); }catch(e){}
-      ctr('HOPE CHRISTIAN ACADEMY',42,18,true,[17,27,46]); ctr('REGISTRE DE PAIE MENSUEL'+(rt<100?' - TAUX DU MOIS : '+rt+' %':''),60,12,true,[23,64,139]); ctr('CONFIDENTIEL - DOCUMENT FINANCIER OFFICIEL DE L\'ECOLE',74,8,false,[110,120,140]);
+      ctr('HOPE CHRISTIAN ACADEMY',42,18,true,[17,27,46]); ctr('REGISTRE DE PAIE MENSUEL'+(rt<100?' - TAUX DU MOIS : '+rt+' %':''),60,12,true,[23,64,139]); ctr('CONFIDENTIEL - DOCUMENT FINANCIER OFFICIEL DE L\'ECOLE'+((priv.pb||{})[m]?'   |   PAIE CONFIEE A : '+(priv.pb[m]).toUpperCase():''),74,8,false,[110,120,140]);
       d.setFontSize(10); d.setTextColor(17,27,46); d.setFont('helvetica','bold');
       var fy=104; d.text('MOIS TRAVAILLE :',M,fy); d.text('DERNIER PAIEMENT :',M+290,fy); d.text('DEVISE :',M+560,fy);
       d.setFont('helvetica','normal'); d.text(pdfTxt(monthLabel(m+'-01').toUpperCase()),M+100,fy); d.text(pdfTxt(shortDate(dpaid)),M+400,fy); d.text(pdfTxt(curLbl()),M+612,fy);
@@ -3492,7 +3511,7 @@ $('#rgPdf').addEventListener('click',function(){
   titles.forEach(function(tt,i){
     var x=M+i*bw; d.setFont('helvetica','bold'); d.setFontSize(8); d.setTextColor(110,120,140); d.text(tt,x,y);
     d.setFont('helvetica','normal'); d.setFontSize(9); d.setTextColor(17,27,46);
-    d.text('Nom :',x,y+18); d.text(i===0&&sender?pdfTxt(sender):'',x+34,y+16); d.setDrawColor(120,130,150); d.line(x+32,y+20,x+bw-14,y+20);
+    d.text('Nom :',x,y+18); d.text(i===0&&sender?pdfTxt(sender):(i===2&&(priv.pb||{})[m]?pdfTxt(priv.pb[m]):''),x+34,y+16); d.setDrawColor(120,130,150); d.line(x+32,y+20,x+bw-14,y+20);
     d.text('Signature :',x,y+40); d.line(x+52,y+42,x+bw-14,y+42);
   });
   saveFile('registre-paie-'+m+'.pdf',d.output('arraybuffer'),'application/pdf');
